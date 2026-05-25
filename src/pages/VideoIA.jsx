@@ -228,7 +228,7 @@ export default function VideoIA() {
           tensao_id: tensao.id,
           tensao_texto: tensao.tensao,
           titulo: tensao.tensao.substring(0, 80),
-          publico_alvo: ['corretor','proprietario','comprador','investidor'].includes(guia.publico) ? guia.publico : 'corretor',
+          publico_alvo: guia.publico === 'proprietario' ? 'proprietario' : 'corretor',
           gancho: guia.sugestoes_de_gancho?.[0] || '',
           sugestoes_de_gancho: guia.sugestoes_de_gancho,
           direcao: guia.direcao,
