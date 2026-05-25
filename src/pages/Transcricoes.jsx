@@ -101,7 +101,7 @@ export default function Transcricoes() {
     if (gerandoTensao[key]) return
     setGerandoTensao(prev => ({ ...prev, [key]: true }))
     try {
-      // 1. Verificar se já existe guia pelo texto da tensão (fallback)
+      // Verificar se já existe guia pelo texto da tensão
       const { data: guiaExistente } = await supabase
         .from('guias_profundas')
         .select('*')
@@ -112,7 +112,7 @@ export default function Transcricoes() {
       if (guiaExistente) {
         guia = guiaExistente
       } else {
-        // 2. Salvar a tensão no banco (se ainda não tiver ID)
+        // Salvar a tensão se necessário
         let tensaoId = tensao.id
         if (!tensaoId) {
           const { data: tensaoInserida, error: tensaoError } = await supabase
@@ -135,7 +135,7 @@ export default function Transcricoes() {
           tensaoId = tensaoInserida[0].id
         }
 
-        // 3. Chamar a Edge Function para gerar o guia
+        // Chamar a Edge Function
         const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/gerar-guia`, {
           method: 'POST',
           headers: {
@@ -151,7 +151,6 @@ export default function Transcricoes() {
         const result = await response.json()
         if (!response.ok) throw new Error(result.error || 'Erro na Edge Function')
 
-        // 4. Buscar o guia salvo
         const { data: guiaSalvo } = await supabase
           .from('guias_profundas')
           .select('*')
@@ -278,7 +277,15 @@ export default function Transcricoes() {
                                   <div key={idx} className="bg-white/[0.03] rounded-lg p-3 border border-white/[0.05]">
                                     <div className="flex justify-between items-start">
                                       <div className="flex-1">
-                                        <p className="text-sm font-medium text-[#E8E6E1]}">{tensao.tensao || tensao.tema}</p>
+                                        <div className="flex items-center gap-2 flex-wrap">
+                                          <p className="text-sm font-medium text-[#E8E6E1]}">{tensao.tensao || tensao.tema}</p>
+                                          {/* Indicador de guia gerado */}
+                                          {guia && (
+                                            <span className="inline-flex items-center gap-1 text-[10px] px-2 py-0.5 bg-emerald-500/20 text-emerald-400 rounded-full">
+                                              ✅ Guia gerado
+                                            </span>
+                                          )}
+                                        </div>
                                         <div className="flex flex-wrap gap-1.5 mt-2">
                                           {tensao.gatilhos?.map(g => <span key={g} className={`text-[10px] px-2 py-0.5 rounded-full ${GATILHO_COLORS[g] || 'bg-white/10 text-white/40'}`}>{g}</span>)}
                                           <span className={`text-[10px] px-2 py-0.5 rounded-full ${POTENCIAL_COLORS[tensao.potencial] || POTENCIAL_COLORS.medio}`}>
@@ -290,31 +297,31 @@ export default function Transcricoes() {
                                           <p className="text-xs text-white/40 mt-1">🎬 {FORMATO_ICONES[tensao.formato_ideal]}</p>
                                         )}
                                       </div>
-                                      <button
-                                        onClick={() => gerarGuiaParaTensao(trans, tensao, idx)}
-                                        disabled={gerando}
-                                        className="ml-2 text-xs bg-violet-500/20 hover:bg-violet-500/30 text-violet-300 px-2 py-1 rounded whitespace-nowrap"
-                                      >
-                                        {gerando ? <SpinIcon /> : '🎬 Gerar guia profundo'}
-                                      </button>
-                                    </div>
-                                    {guia && (
-                                      <div className="mt-3">
+                                      {/* Botão de gerar só aparece se NÃO houver guia */}
+                                      {!guia ? (
+                                        <button
+                                          onClick={() => gerarGuiaParaTensao(trans, tensao, idx)}
+                                          disabled={gerando}
+                                          className="ml-2 text-xs bg-violet-500/20 hover:bg-violet-500/30 text-violet-300 px-2 py-1 rounded whitespace-nowrap"
+                                        >
+                                          {gerando ? <SpinIcon /> : '🎬 Gerar guia profundo'}
+                                        </button>
+                                      ) : (
                                         <button
                                           onClick={() => toggleGuia(key)}
-                                          className="text-[10px] uppercase text-white/30 hover:text-white/50 transition"
+                                          className="ml-2 text-xs bg-white/10 hover:bg-white/20 text-white/60 px-2 py-1 rounded whitespace-nowrap"
                                         >
-                                          {guiaAberto ? '▼ Ocultar guia' : '▶ Mostrar guia'}
+                                          {guiaAberto ? '▼ Ocultar' : '▶ Mostrar guia'}
                                         </button>
-                                        {guiaAberto && (
-                                          <div className="mt-2 p-3 bg-white/[0.05] rounded-md space-y-2 text-sm">
-                                            <div><span className="text-[10px] uppercase text-white/30">🎬 GANCHO</span><p className="text-amber-400">"{guia.gancho}"</p></div>
-                                            <div><span className="text-[10px] uppercase text-white/30">🧠 LINHA DE RACIOCÍNIO</span><p className="text-white/80">{guia.linha_de_raciocinio}</p></div>
-                                            <div><span className="text-[10px] uppercase text-white/30">📝 TÓPICOS</span><ul className="list-disc list-inside text-white/60 text-sm">{guia.topicos?.map((t,i)=><li key={i}>{t}</li>)}</ul></div>
-                                            <div><span className="text-[10px] uppercase text-white/30">💬 FRASES IMPACTO</span>{guia.frases_impacto?.map((f,i)=><p key={i} className="text-white/50 italic">"{f}"</p>)}</div>
-                                            <div><span className="text-[10px] uppercase text-white/30">📢 CTA</span><p className="text-emerald-400">"{guia.cta}"</p></div>
-                                          </div>
-                                        )}
+                                      )}
+                                    </div>
+                                    {guia && guiaAberto && (
+                                      <div className="mt-3 p-3 bg-white/[0.05] rounded-md space-y-2 text-sm">
+                                        <div><span className="text-[10px] uppercase text-white/30">🎬 GANCHO</span><p className="text-amber-400">"{guia.gancho}"</p></div>
+                                        <div><span className="text-[10px] uppercase text-white/30">🧠 LINHA DE RACIOCÍNIO</span><p className="text-white/80">{guia.linha_de_raciocinio}</p></div>
+                                        <div><span className="text-[10px] uppercase text-white/30">📝 TÓPICOS</span><ul className="list-disc list-inside text-white/60 text-sm">{guia.topicos?.map((t,i)=><li key={i}>{t}</li>)}</ul></div>
+                                        <div><span className="text-[10px] uppercase text-white/30">💬 FRASES IMPACTO</span>{guia.frases_impacto?.map((f,i)=><p key={i} className="text-white/50 italic">"{f}"</p>)}</div>
+                                        <div><span className="text-[10px] uppercase text-white/30">📢 CTA</span><p className="text-emerald-400">"{guia.cta}"</p></div>
                                       </div>
                                     )}
                                   </div>
