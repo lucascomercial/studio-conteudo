@@ -42,14 +42,18 @@ export default function Aulas() {
       return
     }
     setAulas(aulasData || [])
+    
+    // Carregar tensões para cada aula
+    const novasTensoesPorAula = {}
     for (const aula of aulasData || []) {
       const { data: tensoes, error: tensoesError } = await supabase
         .from('tensoes')
         .select('*')
         .eq('aula_id', aula.id)
       if (tensoesError) console.error(tensoesError)
-      setTensoesPorAula(prev => ({ ...prev, [aula.id]: tensoes || [] }))
+      novasTensoesPorAula[aula.id] = tensoes || []
     }
+    setTensoesPorAula(novasTensoesPorAula)
     setLoading(false)
   }
 
@@ -57,6 +61,14 @@ export default function Aulas() {
     setProcessandoAula(aulaId)
     setError(null)
     try {
+      // 1. Remover tensões antigas da aula (para evitar duplicatas)
+      const { error: deleteError } = await supabase
+        .from('tensoes')
+        .delete()
+        .eq('aula_id', aulaId)
+      if (deleteError) console.warn('Erro ao deletar tensões antigas:', deleteError)
+
+      // 2. Chamar a Edge Function para extrair novas tensões
       const response = await fetch(`${SUPABASE_URL}/functions/v1/extrair-tensoes`, {
         method: 'POST',
         headers: {
@@ -68,11 +80,12 @@ export default function Aulas() {
       const result = await response.json()
       if (!response.ok) throw new Error(result.error || `HTTP ${response.status}`)
 
-      // Recarregar tensões da aula
+      // 3. Recarregar as tensões da aula
       const { data: novasTensoes } = await supabase
         .from('tensoes')
         .select('*')
         .eq('aula_id', aulaId)
+      
       setTensoesPorAula(prev => ({ ...prev, [aulaId]: novasTensoes || [] }))
       setAulas(prev => prev.map(a => a.id === aulaId ? { ...a, status: 'conceitos_extraidos' } : a))
       alert(`✅ ${result.inserted || novasTensoes?.length || 0} tensões extraídas!`)
@@ -135,9 +148,19 @@ export default function Aulas() {
   return (
     <div className="flex flex-col h-screen">
       <div className="border-b border-white/[0.06] px-6 py-4 bg-[#0C0C0E]/80 backdrop-blur-sm sticky top-0 z-10">
-        <h1 className="text-sm font-medium text-[#E8E6E1]">📚 Biblioteca de Aulas</h1>
-        <p className="text-xs text-white/30 mt-0.5">{aulas.length} aulas disponíveis</p>
-        {error && <p className="text-xs text-red-400 mt-1">{error}</p>}
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-sm font-medium text-[#E8E6E1]">📚 Biblioteca de Aulas</h1>
+            <p className="text-xs text-white/30 mt-0.5">{aulas.length} aulas disponíveis</p>
+            {error && <p className="text-xs text-red-400 mt-1">{error}</p>}
+          </div>
+          <button
+            onClick={carregarAulas}
+            className="text-xs bg-white/10 hover:bg-white/15 px-3 py-1.5 rounded transition"
+          >
+            ↻ Recarregar
+          </button>
+        </div>
       </div>
 
       <div className="flex-1 overflow-y-auto p-6">
@@ -155,11 +178,11 @@ export default function Aulas() {
                   <div className="flex-1">
                     <div className="flex items-center gap-2 mb-1">
                       <span className={`text-[10px] px-2 py-0.5 rounded-full ${
-                        aula.status === 'conceitos_extraidos'
+                        tensoes.length > 0
                           ? 'bg-emerald-500/20 text-emerald-400'
                           : 'bg-white/10 text-white/40'
                       }`}>
-                        {aula.status === 'conceitos_extraidos' ? '✅ Conceitos extraídos' : '📝 Pendente'}
+                        {tensoes.length > 0 ? '✅ Conceitos extraídos' : '📝 Pendente'}
                       </span>
                       <span className="text-[10px] text-white/30">Aula {aula.ordem || aula.id}</span>
                     </div>
@@ -167,15 +190,13 @@ export default function Aulas() {
                     <div className="text-xs text-white/30 mt-1">{tensoes.length} tensões extraídas</div>
                   </div>
                   <div className="flex items-center gap-2">
-                    {aula.status !== 'conceitos_extraidos' && (
-                      <button
-                        onClick={(e) => { e.stopPropagation(); extrairTensoes(aula.id) }}
-                        disabled={processando}
-                        className="text-xs bg-violet-500/20 hover:bg-violet-500/30 text-violet-300 px-3 py-1 rounded disabled:opacity-50"
-                      >
-                        {processando ? <><SpinIcon size={3} /> Extraindo...</> : '🎬 Extrair tensões'}
-                      </button>
-                    )}
+                    <button
+                      onClick={(e) => { e.stopPropagation(); extrairTensoes(aula.id) }}
+                      disabled={processando}
+                      className="text-xs bg-violet-500/20 hover:bg-violet-500/30 text-violet-300 px-3 py-1 rounded disabled:opacity-50"
+                    >
+                      {processando ? <><SpinIcon size={3} /> Extraindo...</> : '🎬 Extrair tensões'}
+                    </button>
                     <span className="text-white/30 text-lg">{expandida ? '−' : '+'}</span>
                   </div>
                 </div>
@@ -193,6 +214,14 @@ export default function Aulas() {
                           return (
                             <div key={tensao.id} className="bg-white/[0.03] rounded-lg p-3 border border-white/[0.05]">
                               <p className="text-sm text-white/80">{tensao.tensao}</p>
+                              <div className="flex flex-wrap gap-2 mt-2">
+                                {tensao.gatilhos?.slice(0,2).map(g => (
+                                  <span key={g} className="text-[10px] px-2 py-0.5 bg-white/10 rounded-full">{g}</span>
+                                ))}
+                                {tensao.potencial_viral && (
+                                  <span className="text-[10px] px-2 py-0.5 bg-red-500/20 rounded-full">🔥 Viral: {tensao.potencial_viral}</span>
+                                )}
+                              </div>
                               <div className="flex justify-end mt-2">
                                 {!guia ? (
                                   <button
