@@ -61,7 +61,33 @@ export default function Transcricoes() {
       .from('transcricoes')
       .select('*')
       .order('created_at', { ascending: false })
-    if (!error) setTranscricoes(data || [])
+    if (error) {
+      console.error(error)
+      setLoading(false)
+      return
+    }
+    setTranscricoes(data || [])
+
+    // Carregar guias existentes para todas as tensões
+    const guiasMap = {}
+    for (const trans of data || []) {
+      if (trans.temas_brutos && Array.isArray(trans.temas_brutos)) {
+        for (let idx = 0; idx < trans.temas_brutos.length; idx++) {
+          const tensao = trans.temas_brutos[idx]
+          const key = `${trans.id}_${idx}`
+          // Buscar guia pelo texto da tensão (pode ser impreciso? mas funciona)
+          const { data: guia } = await supabase
+            .from('guias_profundas')
+            .select('*')
+            .eq('tensao_texto', tensao.tensao || tensao.tema)
+            .maybeSingle()
+          if (guia) {
+            guiasMap[key] = guia
+          }
+        }
+      }
+    }
+    setGuiasPorTensao(guiasMap)
     setLoading(false)
   }
 
