@@ -57,7 +57,6 @@ function GuiaModal({ guia, onClose, onDelete, onRecriar }) {
 
   if (!guia) return null
 
-  // Função auxiliar para exibir contraste (arrays fraco/forte ou campos comum/especialista legado)
   const getContrasteComum = () => {
     if (guia.contraste?.fraco) return guia.contraste.fraco.join(', ')
     if (guia.contraste?.comum) return guia.contraste.comum
@@ -109,12 +108,6 @@ function GuiaModal({ guia, onClose, onDelete, onRecriar }) {
               )}
             </div>
             <h2 className="text-base font-medium text-[#E8E6E1]">{guia.titulo || guia.tensao_texto}</h2>
-            {!isProfundo && guia.narrativa && (
-              <div className="flex flex-wrap gap-2 mt-2">
-                {guia.emocao && <span className={`text-[10px] px-2 py-0.5 rounded-full ${EMOCAO_CORES[guia.emocao] || 'bg-white/10'}`}>😰 {guia.emocao}</span>}
-                {guia.narrativa && <span className={`text-[10px] px-2 py-0.5 rounded-full ${NARRATIVA_CORES[guia.narrativa] || 'bg-white/10'}`}>📖 {guia.narrativa}</span>}
-              </div>
-            )}
           </div>
           <button onClick={onClose} className="text-white/30 hover:text-white/60">✕</button>
         </div>
@@ -134,6 +127,35 @@ function GuiaModal({ guia, onClose, onDelete, onRecriar }) {
             </div>
           )}
 
+          {/* NOVOS CAMPOS */}
+          {guia.como_isso_vira_conteudo_de_camera && (
+            <div className="bg-amber-500/10 border-l-2 border-amber-500/30 p-3 rounded-r-lg">
+              <div className="text-[10px] uppercase text-amber-400/70 mb-1">🎯 FRASE PARA CÂMERA</div>
+              <p className="text-amber-400 font-medium">"{guia.como_isso_vira_conteudo_de_camera}"</p>
+            </div>
+          )}
+
+          {guia.ferida_original && (
+            <div className="bg-red-500/10 border-l-2 border-red-500/30 p-3 rounded-r-lg">
+              <div className="text-[10px] uppercase text-red-400/70 mb-1">🩸 FERIDA ORIGINAL</div>
+              <p className="text-sm text-white/80">{guia.ferida_original}</p>
+            </div>
+          )}
+
+          {guia.mecanismo_de_defesa && (
+            <div className="bg-violet-500/10 border-l-2 border-violet-500/30 p-3 rounded-r-lg">
+              <div className="text-[10px] uppercase text-violet-400/70 mb-1">🛡️ MECANISMO DE DEFESA</div>
+              <p className="text-sm text-white/80">{guia.mecanismo_de_defesa}</p>
+            </div>
+          )}
+
+          {guia.verdade_dificil && (
+            <div className="bg-emerald-500/10 border-l-2 border-emerald-500/30 p-3 rounded-r-lg">
+              <div className="text-[10px] uppercase text-emerald-400/70 mb-1">💎 VERDADE DIFÍCIL</div>
+              <p className="text-sm text-white/80 italic">{guia.verdade_dificil}</p>
+            </div>
+          )}
+
           {isProfundo && (
             <>
               {guia.o_que_isso_realmente_quer_dizer && (
@@ -142,26 +164,32 @@ function GuiaModal({ guia, onClose, onDelete, onRecriar }) {
                   <p className="text-white/80 italic">{guia.o_que_isso_realmente_quer_dizer}</p>
                 </div>
               )}
+
               {guia.consequencia_invisivel && (
                 <div>
                   <div className="text-[10px] uppercase text-white/30 mb-1">⚠️ CONSEQUÊNCIA INVISÍVEL</div>
                   <p className="text-white/70">{guia.consequencia_invisivel}</p>
                 </div>
               )}
-              {guia.comportamento_corrigido && (
+
+              {guia.comportamento_social_visivel?.length > 0 && (
                 <div>
-                  <div className="text-[10px] uppercase text-white/30 mb-1">🎯 COMPORTAMENTO CORRIGIDO</div>
-                  <p className="text-amber-400">{guia.comportamento_corrigido}</p>
-                </div>
-              )}
-              {guia.erro_invisivel && (
-                <div className="bg-red-500/10 border-l-2 border-red-500/30 p-3 rounded-r-lg">
-                  <div className="text-[10px] uppercase text-red-400/70 mb-1">🧨 ERRO INVISÍVEL</div>
-                  <p className="text-sm text-white/80">{guia.erro_invisivel}</p>
+                  <div className="text-[10px] uppercase text-white/30 mb-1">👥 COMPORTAMENTO SOCIAL VISÍVEL</div>
+                  <ul className="list-disc list-inside space-y-1 text-white/70 text-sm">
+                    {guia.comportamento_social_visivel.map((item, i) => <li key={i}>{item}</li>)}
+                  </ul>
                 </div>
               )}
 
-              {/* CAMPOS ADICIONAIS DO PROMPT PROFUNDO */}
+              {guia.sinais_reais_de_desconfianca?.length > 0 && (
+                <div>
+                  <div className="text-[10px] uppercase text-white/30 mb-1">🔍 SINAIS REAIS DE DESCONFIANÇA</div>
+                  <ul className="list-disc list-inside space-y-1 text-white/70 text-sm">
+                    {guia.sinais_reais_de_desconfianca.map((item, i) => <li key={i}>{item}</li>)}
+                  </ul>
+                </div>
+              )}
+
               {guia.o_que_essa_pessoa_acredita?.length > 0 && (
                 <div>
                   <div className="text-[10px] uppercase text-white/30 mb-1">💭 O QUE ESSA PESSOA ACREDITA</div>
@@ -194,18 +222,9 @@ function GuiaModal({ guia, onClose, onDelete, onRecriar }) {
 
               {guia.energia_ideal && (
                 <div className="grid grid-cols-3 gap-2 text-center">
-                  <div>
-                    <div className="text-[10px] uppercase text-white/30">INÍCIO</div>
-                    <p className="text-xs text-white/80">{guia.energia_ideal.inicio}</p>
-                  </div>
-                  <div>
-                    <div className="text-[10px] uppercase text-white/30">MEIO</div>
-                    <p className="text-xs text-white/80">{guia.energia_ideal.meio}</p>
-                  </div>
-                  <div>
-                    <div className="text-[10px] uppercase text-white/30">FINAL</div>
-                    <p className="text-xs text-white/80">{guia.energia_ideal.final}</p>
-                  </div>
+                  <div><div className="text-[10px] uppercase text-white/30">INÍCIO</div><p className="text-xs text-white/80">{guia.energia_ideal.inicio}</p></div>
+                  <div><div className="text-[10px] uppercase text-white/30">MEIO</div><p className="text-xs text-white/80">{guia.energia_ideal.meio}</p></div>
+                  <div><div className="text-[10px] uppercase text-white/30">FINAL</div><p className="text-xs text-white/80">{guia.energia_ideal.final}</p></div>
                 </div>
               )}
 
@@ -227,9 +246,7 @@ function GuiaModal({ guia, onClose, onDelete, onRecriar }) {
                 <div>
                   <div className="text-[10px] uppercase text-white/30 mb-1">🎬 COMO ISSO APARECE NA VIDA REAL</div>
                   <ul className="space-y-1">
-                    {guia.como_aparece_na_vida_real.map((cena, i) => (
-                      <li key={i} className="text-sm text-white/70">→ {cena}</li>
-                    ))}
+                    {guia.como_aparece_na_vida_real.map((cena, i) => <li key={i} className="text-sm text-white/70">→ {cena}</li>)}
                   </ul>
                 </div>
               )}
@@ -238,18 +255,7 @@ function GuiaModal({ guia, onClose, onDelete, onRecriar }) {
                 <div>
                   <div className="text-[10px] uppercase text-white/30 mb-1">🎥 MICRO CENAS</div>
                   <ul className="space-y-1">
-                    {guia.micro_cenas.map((cena, i) => (
-                      <li key={i} className="text-sm text-white/60">• {cena}</li>
-                    ))}
-                  </ul>
-                </div>
-              )}
-
-              {guia.o_que_entrega_amador?.length > 0 && (
-                <div>
-                  <div className="text-[10px] uppercase text-white/30 mb-1">😬 O QUE ENTREGA O AMADOR</div>
-                  <ul className="list-disc list-inside text-white/60 text-sm">
-                    {guia.o_que_entrega_amador.map((item, i) => <li key={i}>{item}</li>)}
+                    {guia.micro_cenas.map((cena, i) => <li key={i} className="text-sm text-white/60">• {cena}</li>)}
                   </ul>
                 </div>
               )}
@@ -281,36 +287,6 @@ function GuiaModal({ guia, onClose, onDelete, onRecriar }) {
                 <div className="bg-red-500/10 border-l-2 border-red-500/30 p-3 rounded-r-lg">
                   <div className="text-[10px] uppercase text-red-400/70 mb-1">🏛️ O QUE O MERCADO NÃO PERDOA</div>
                   <p className="text-sm text-white/80">{guia.o_que_mercado_nao_perdoa}</p>
-                </div>
-              )}
-
-              {guia.momento_virada && (
-                <div className="bg-emerald-500/10 border-l-2 border-emerald-500/30 p-3 rounded-r-lg">
-                  <div className="text-[10px] uppercase text-emerald-400/70 mb-1">🔥 MOMENTO DE VIRADA</div>
-                  <p className="text-sm text-white/80 italic">"{guia.momento_virada}"</p>
-                </div>
-              )}
-
-              {guia.sensacao_que_video_precisa_passar && (
-                <div>
-                  <div className="text-[10px] uppercase text-white/30 mb-1">🎯 SENSAÇÃO QUE O VÍDEO PRECISA PASSAR</div>
-                  <span className="text-xs bg-white/10 px-2 py-1 rounded-full uppercase">
-                    {guia.sensacao_que_video_precisa_passar}
-                  </span>
-                </div>
-              )}
-
-              {guia.o_que_pessoa_entendeu_mercado && (
-                <div className="bg-violet-500/10 border-l-2 border-violet-500/30 p-3 rounded-r-lg">
-                  <div className="text-[10px] uppercase text-violet-400/70 mb-1">🧠 O QUE A PESSOA DO VÍDEO ENTENDEU SOBRE O MERCADO</div>
-                  <p className="text-sm text-white/80">{guia.o_que_pessoa_entendeu_mercado}</p>
-                </div>
-              )}
-
-              {guia.frase_alma_conteudo && (
-                <div className="text-center p-2 border border-white/20 rounded-lg bg-white/5">
-                  <div className="text-[10px] uppercase text-white/30 mb-1">⚡ FRASE QUE RESUME A ALMA DO CONTEÚDO</div>
-                  <p className="text-lg font-bold text-amber-400">{guia.frase_alma_conteudo}</p>
                 </div>
               )}
             </>
@@ -371,7 +347,6 @@ export default function Roteiros() {
   const [loading, setLoading] = useState(true)
   const [modalGuia, setModalGuia] = useState(null)
   const [activeTab, setActiveTab] = useState('guias')
-
   const [filtroPublico, setFiltroPublico] = useState('')
   const [filtroStatus, setFiltroStatus] = useState('')
   const [busca, setBusca] = useState('')
@@ -380,19 +355,15 @@ export default function Roteiros() {
     carregarDados()
   }, [])
 
-  // ============================================================
-  // RECRIAR GUIA COM BUSCA AUTOMÁTICA DO tensao_id
-  // ============================================================
   const recriarGuia = async (guia) => {
     if (!confirm('Recriar esta guia com o novo prompt? A guia atual será substituída.')) return
 
     let tensaoId = guia.tensao_id
 
-    // Se não tem tensao_id, tenta buscar na tabela tensoes pelo texto da tensão
     if (!tensaoId) {
       const tensaoTexto = guia.tensao_texto || guia.titulo
       if (!tensaoTexto) {
-        alert('❌ Não foi possível identificar a tensão original. Impossível recriar.')
+        alert('❌ Não foi possível identificar a tensão original.')
         return
       }
       const { data: tensaoEncontrada, error: buscaError } = await supabase
@@ -401,12 +372,10 @@ export default function Roteiros() {
         .eq('tensao', tensaoTexto)
         .maybeSingle()
       if (buscaError || !tensaoEncontrada) {
-        console.error('Erro ao buscar tensão:', buscaError)
-        alert('❌ Não foi encontrar a tensão original no banco. Recriação manual não disponível.')
+        alert('❌ Não foi encontrar a tensão original no banco.')
         return
       }
       tensaoId = tensaoEncontrada.id
-      // Atualiza o campo tensao_id no guia para futuras recriações
       await supabase.from('guias_profundas').update({ tensao_id: tensaoId }).eq('id', guia.id)
     }
 
@@ -428,13 +397,10 @@ export default function Roteiros() {
 
       const novaGuia = result.guia
 
-      // Atualizar o registro existente com todos os campos retornados pela Edge Function
-      const { error: updateError } = await supabase
+      await supabase
         .from('guias_profundas')
         .update({
           tensao_id: tensaoId,
-          tensao_texto: guia.tensao_texto,
-          titulo: guia.titulo,
           publico_alvo: novaGuia.publico || guia.publico_alvo,
           narrativa: novaGuia.narrativa,
           emocao: novaGuia.emocao,
@@ -473,11 +439,15 @@ export default function Roteiros() {
           tom_ideal: novaGuia.tom_ideal,
           risco_interpretacao_errada: novaGuia.risco_interpretacao_errada,
           cta: novaGuia.cta,
+          ferida_original: novaGuia.ferida_original,
+          mecanismo_de_defesa: novaGuia.mecanismo_de_defesa,
+          comportamento_social_visivel: novaGuia.comportamento_social_visivel || [],
+          verdade_dificil: novaGuia.verdade_dificil,
+          sinais_reais_de_desconfianca: novaGuia.sinais_reais_de_desconfianca || [],
+          como_isso_vira_conteudo_de_camera: novaGuia.como_isso_vira_conteudo_de_camera,
           updated_at: new Date().toISOString()
         })
         .eq('id', guia.id)
-
-      if (updateError) throw updateError
 
       alert('✅ Guia recriada com sucesso!')
       setModalGuia(null)
@@ -551,6 +521,12 @@ export default function Roteiros() {
         energia_ideal: p.energia_ideal,
         tom_ideal: p.tom_ideal,
         risco_interpretacao_errada: p.risco_interpretacao_errada,
+        ferida_original: p.ferida_original,
+        mecanismo_de_defesa: p.mecanismo_de_defesa,
+        comportamento_social_visivel: p.comportamento_social_visivel || [],
+        verdade_dificil: p.verdade_dificil,
+        sinais_reais_de_desconfianca: p.sinais_reais_de_desconfianca || [],
+        como_isso_vira_conteudo_de_camera: p.como_isso_vira_conteudo_de_camera,
         tipo: 'profundo',
         created_at: p.created_at || new Date(0).toISOString(),
       })),
@@ -605,9 +581,7 @@ export default function Roteiros() {
           <div>
             <h1 className="text-sm font-medium text-[#E8E6E1]">🎯 Central de Conteúdo Estratégico</h1>
             <p className="text-xs text-white/30 mt-0.5">
-              {activeTab === 'guias'
-                ? `${guiasFiltradas.length} de ${guias.length} guias disponíveis`
-                : `${roteirosLegado.length} roteiros (legado)`}
+              {activeTab === 'guias' ? `${guiasFiltradas.length} de ${guias.length} guias disponíveis` : `${roteirosLegado.length} roteiros (legado)`}
             </p>
           </div>
           <button onClick={carregarDados} className="text-xs bg-white/10 hover:bg-white/15 px-3 py-1.5 rounded transition">
@@ -617,24 +591,10 @@ export default function Roteiros() {
       </div>
 
       <div className="border-b border-white/[0.06] px-6 flex gap-6">
-        <button
-          onClick={() => setActiveTab('guias')}
-          className={`pb-3 text-sm transition-colors border-b-2 ${
-            activeTab === 'guias'
-              ? 'text-[#E8E6E1] border-white/40'
-              : 'text-white/30 border-transparent hover:text-white/50'
-          }`}
-        >
+        <button onClick={() => setActiveTab('guias')} className={`pb-3 text-sm transition-colors border-b-2 ${activeTab === 'guias' ? 'text-[#E8E6E1] border-white/40' : 'text-white/30 border-transparent hover:text-white/50'}`}>
           🎯 Guias de Criação (unificado)
         </button>
-        <button
-          onClick={() => setActiveTab('legado')}
-          className={`pb-3 text-sm transition-colors border-b-2 ${
-            activeTab === 'legado'
-              ? 'text-[#E8E6E1] border-white/40'
-              : 'text-white/30 border-transparent hover:text-white/50'
-          }`}
-        >
+        <button onClick={() => setActiveTab('legado')} className={`pb-3 text-sm transition-colors border-b-2 ${activeTab === 'legado' ? 'text-[#E8E6E1] border-white/40' : 'text-white/30 border-transparent hover:text-white/50'}`}>
           📜 Roteiros (legado)
         </button>
       </div>
@@ -644,15 +604,8 @@ export default function Roteiros() {
           <div className="flex items-center gap-3 flex-wrap">
             <div className="relative shrink-0">
               <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-white/25 text-xs">⌕</span>
-              <input
-                type="text"
-                placeholder="Buscar guia..."
-                value={busca}
-                onChange={e => setBusca(e.target.value)}
-                className="bg-white/[0.04] border border-white/[0.06] rounded-lg pl-7 pr-3 py-1.5 text-xs w-48"
-              />
+              <input type="text" placeholder="Buscar guia..." value={busca} onChange={e => setBusca(e.target.value)} className="bg-white/[0.04] border border-white/[0.06] rounded-lg pl-7 pr-3 py-1.5 text-xs w-48" />
             </div>
-
             <select value={filtroPublico} onChange={e => setFiltroPublico(e.target.value)} className="bg-white/[0.04] border border-white/[0.06] rounded-lg px-2.5 py-1.5 text-xs text-white/50">
               <option value="">Todos os públicos</option>
               <option value="corretor">🎯 Corretor</option>
@@ -660,18 +613,14 @@ export default function Roteiros() {
               <option value="comprador">💰 Comprador</option>
               <option value="investidor">📈 Investidor</option>
             </select>
-
             <select value={filtroStatus} onChange={e => setFiltroStatus(e.target.value)} className="bg-white/[0.04] border border-white/[0.06] rounded-lg px-2.5 py-1.5 text-xs text-white/50">
               <option value="">📝 Todos status</option>
               <option value="pendente">📝 Pendente</option>
               <option value="gravado">🎬 Gravado</option>
               <option value="publicado">📱 Publicado</option>
             </select>
-
             {(busca || filtroPublico || filtroStatus) && (
-              <button onClick={limparFiltros} className="text-xs text-white/30 hover:text-white/60">
-                Limpar filtros
-              </button>
+              <button onClick={limparFiltros} className="text-xs text-white/30 hover:text-white/60">Limpar filtros</button>
             )}
           </div>
         </div>
@@ -692,41 +641,19 @@ export default function Roteiros() {
             ) : (
               <div className="grid gap-4 grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
                 {guiasFiltradas.map(guia => (
-                  <div
-                    key={guia.id}
-                    onClick={() => setModalGuia(guia)}
-                    className="bg-[#111113] border border-white/[0.06] rounded-xl p-4 cursor-pointer hover:bg-[#161618] transition"
-                  >
+                  <div key={guia.id} onClick={() => setModalGuia(guia)} className="bg-[#111113] border border-white/[0.06] rounded-xl p-4 cursor-pointer hover:bg-[#161618] transition">
                     <div className="flex flex-wrap gap-1.5 mb-2">
-                      <span className={`text-[10px] px-2 py-0.5 rounded-full ${
-                        guia.publico_alvo === 'corretor' ? 'bg-blue-500/20 text-blue-400' :
-                        guia.publico_alvo === 'proprietario' ? 'bg-emerald-500/20 text-emerald-400' :
-                        guia.publico_alvo === 'comprador' ? 'bg-amber-500/20 text-amber-400' :
-                        'bg-violet-500/20 text-violet-400'
-                      }`}>
-                        {guia.publico_alvo === 'corretor' ? '🎯 Corretor' :
-                         guia.publico_alvo === 'proprietario' ? '🏠 Proprietário' :
-                         guia.publico_alvo === 'comprador' ? '💰 Comprador' : '📈 Investidor'}
+                      <span className={`text-[10px] px-2 py-0.5 rounded-full ${guia.publico_alvo === 'corretor' ? 'bg-blue-500/20 text-blue-400' : guia.publico_alvo === 'proprietario' ? 'bg-emerald-500/20 text-emerald-400' : guia.publico_alvo === 'comprador' ? 'bg-amber-500/20 text-amber-400' : 'bg-violet-500/20 text-violet-400'}`}>
+                        {guia.publico_alvo === 'corretor' ? '🎯 Corretor' : guia.publico_alvo === 'proprietario' ? '🏠 Proprietário' : guia.publico_alvo === 'comprador' ? '💰 Comprador' : '📈 Investidor'}
                       </span>
-                      {guia.emocao && (
-                        <span className={`text-[10px] px-2 py-0.5 rounded-full ${EMOCAO_CORES[guia.emocao] || 'bg-white/10'}`}>
-                          {guia.emocao}
-                        </span>
-                      )}
-                      {guia.potencial_viral >= 7 && (
-                        <span className="text-[10px] px-2 py-0.5 bg-red-500/20 text-red-400 rounded-full">🔥 {guia.potencial_viral}</span>
-                      )}
-                      {guia.tipo === 'profundo' && (
-                        <span className="text-[10px] px-2 py-0.5 bg-violet-500/20 text-violet-300 rounded-full">🧠 Profundo</span>
-                      )}
+                      {guia.emocao && <span className={`text-[10px] px-2 py-0.5 rounded-full ${EMOCAO_CORES[guia.emocao] || 'bg-white/10'}`}>{guia.emocao}</span>}
+                      {guia.potencial_viral >= 7 && <span className="text-[10px] px-2 py-0.5 bg-red-500/20 text-red-400 rounded-full">🔥 {guia.potencial_viral}</span>}
+                      {guia.tipo === 'profundo' && <span className="text-[10px] px-2 py-0.5 bg-violet-500/20 text-violet-300 rounded-full">🧠 Profundo</span>}
                     </div>
                     <h3 className="text-sm font-medium text-[#E8E6E1] line-clamp-2">{guia.titulo || guia.tensao_texto}</h3>
                     {guia.gancho && <p className="text-xs text-white/40 mt-1 line-clamp-2">"{guia.gancho}"</p>}
                     <div className="flex items-center justify-between mt-3 pt-2 border-t border-white/[0.06]">
-                      <span className={`text-[10px] px-2 py-0.5 rounded-full ${
-                        guia.status === 'gravado' ? 'bg-amber-500/20 text-amber-400' :
-                        guia.status === 'publicado' ? 'bg-emerald-500/20 text-emerald-400' : 'bg-white/10 text-white/30'
-                      }`}>
+                      <span className={`text-[10px] px-2 py-0.5 rounded-full ${guia.status === 'gravado' ? 'bg-amber-500/20 text-amber-400' : guia.status === 'publicado' ? 'bg-emerald-500/20 text-emerald-400' : 'bg-white/10 text-white/30'}`}>
                         {guia.status === 'gravado' ? '🎬 Gravado' : guia.status === 'publicado' ? '📱 Publicado' : '📝 Pendente'}
                       </span>
                     </div>
@@ -754,9 +681,7 @@ export default function Roteiros() {
                         </div>
                         <h3 className="text-sm font-medium text-[#E8E6E1]">{roteiro.titulo}</h3>
                         {roteiro.gancho && <p className="text-xs text-white/50 mt-1 line-clamp-2">{roteiro.gancho}</p>}
-                        <div className="text-[10px] text-white/30 mt-2">
-                          {new Date(roteiro.created_at).toLocaleDateString('pt-BR')}
-                        </div>
+                        <div className="text-[10px] text-white/30 mt-2">{new Date(roteiro.created_at).toLocaleDateString('pt-BR')}</div>
                       </div>
                     </div>
                   </div>
