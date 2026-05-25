@@ -4,6 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { supabase } from '../lib/supabase'
 import { callOpenAIJSON, callOpenAIJSONPremium } from '../lib/openai'
 import { prompts } from '../lib/prompts'
+import MapaMentalProfundo from '../components/MapaMentalProfundo'
 
 const TIPOS = ['podcast', 'aula', 'entrevista', 'video', 'palestra', 'livro', 'outro']
 
@@ -50,6 +51,8 @@ export default function Transcricoes() {
   const [tipo, setTipo] = useState('aula')
   const [texto, setTexto] = useState('')
   const [processando, setProcessando] = useState(false)
+  const [modalGuia, setModalGuia] = useState(null) // { guia, tensao, trans, idx }
+  const [recriandoKey, setRecriandoKey] = useState(null)
 
   useEffect(() => {
     carregarTranscricoes()
@@ -142,7 +145,7 @@ export default function Transcricoes() {
             tensao_id: tensaoId,
             tensao_texto: tensao.tensao,
             titulo: tensao.tensao.substring(0, 80),
-            publico_alvo: ['corretor','proprietario','comprador','investidor'].includes(guiaGerado.publico) ? guiaGerado.publico : 'corretor',
+            publico_alvo: guiaGerado.publico,
             gancho: guiaGerado.sugestoes_de_gancho?.[0] || '',
             sugestoes_de_gancho: guiaGerado.sugestoes_de_gancho,
             direcao: guiaGerado.direcao,
@@ -172,6 +175,24 @@ export default function Transcricoes() {
       alert('Erro ao gerar guia: ' + err.message)
     } finally {
       setGerandoTensao(prev => ({ ...prev, [key]: false }))
+    }
+  }
+
+  const recriarGuia = async (tensao, trans, idx) => {
+    const key = `${trans.id}_${idx}`
+    setRecriandoKey(key)
+    try {
+      // Deleta guia existente pelo texto da tensão
+      await supabase.from('guias_profundas').delete().eq('tensao_texto', tensao.tensao || tensao.tema)
+      // Remove do estado local
+      setGuiasPorTensao(prev => { const n = {...prev}; delete n[key]; return n })
+      // Gera nova guia
+      await gerarGuiaParaTensao(trans, tensao, idx)
+    } catch (err) {
+      console.error(err)
+      alert('Erro ao recriar: ' + err.message)
+    } finally {
+      setRecriandoKey(null)
     }
   }
 
@@ -313,11 +334,26 @@ export default function Transcricoes() {
                                         </button>
                                         {guiaAberto && (
                                           <div className="mt-2 p-3 bg-white/[0.05] rounded-md space-y-2 text-sm">
-                                            <div><span className="text-[10px] uppercase text-white/30">🎬 GANCHO</span><p className="text-amber-400">"{guia.gancho}"</p></div>
-                                            <div><span className="text-[10px] uppercase text-white/30">🧠 LINHA DE RACIOCÍNIO</span><p className="text-white/80">{guia.linha_de_raciocinio}</p></div>
-                                            <div><span className="text-[10px] uppercase text-white/30">📝 TÓPICOS</span><ul className="list-disc list-inside text-white/60 text-sm">{guia.topicos?.map((t,i)=><li key={i}>{t}</li>)}</ul></div>
-                                            <div><span className="text-[10px] uppercase text-white/30">💬 FRASES IMPACTO</span>{guia.frases_impacto?.map((f,i)=><p key={i} className="text-white/50 italic">"{f}"</p>)}</div>
+                                            {/* Preview rápido */}
+                                            <div><span className="text-[10px] uppercase text-white/30">🎬 GANCHO</span><p className="text-amber-400">"{guia.gancho || guia.sugestoes_de_gancho?.[0]}"</p></div>
+                                            {guia.tensao_principal && <div><span className="text-[10px] uppercase text-white/30">⚡ TENSÃO</span><p className="text-white/80">{guia.tensao_principal}</p></div>}
+                                            {guia.alma_do_conteudo && <div><span className="text-[10px] uppercase text-white/30">💡 ALMA</span><p className="text-violet-400 italic">"{guia.alma_do_conteudo}"</p></div>}
                                             <div><span className="text-[10px] uppercase text-white/30">📢 CTA</span><p className="text-emerald-400">"{guia.cta}"</p></div>
+                                            <div className="flex gap-2 pt-2">
+                                              <button
+                                                onClick={() => setModalGuia({ guia, tensao, trans, idx })}
+                                                className="text-xs bg-violet-500/20 hover:bg-violet-500/30 text-violet-300 px-3 py-1.5 rounded transition"
+                                              >
+                                                🧠 Ver guia completo
+                                              </button>
+                                              <button
+                                                onClick={() => recriarGuia(tensao, trans, idx)}
+                                                disabled={recriandoKey === key}
+                                                className="text-xs bg-white/10 hover:bg-white/20 text-white/50 px-3 py-1.5 rounded transition disabled:opacity-40"
+                                              >
+                                                {recriandoKey === key ? '⏳ Recriando...' : '🔄 Recriar'}
+                                              </button>
+                                            </div>
                                           </div>
                                         )}
                                       </div>
@@ -338,5 +374,19 @@ export default function Transcricoes() {
         )}
       </div>
     </div>
+
+      {/* Modal guia completo */}
+      <AnimatePresence>
+        {modalGuia && (
+          <MapaMentalProfundo
+            guia={modalGuia.guia}
+            onClose={() => setModalGuia(null)}
+            onRecriar={async () => {
+              await recriarGuia(modalGuia.tensao, modalGuia.trans, modalGuia.idx)
+              setModalGuia(null)
+            }}
+          />
+        )}
+      </AnimatePresence>
   )
 }
