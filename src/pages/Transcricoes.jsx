@@ -1,5 +1,5 @@
 // src/pages/Transcricoes.jsx
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { supabase } from '../lib/supabase'
 import { callOpenAIJSON } from '../lib/openai'
@@ -51,16 +51,19 @@ export default function Transcricoes() {
   const [texto, setTexto] = useState('')
   const [processando, setProcessando] = useState(false)
 
+  // Carrega transcrições e depois guias em batch
   useEffect(() => {
     carregarTranscricoes()
   }, [])
 
   async function carregarTranscricoes() {
     setLoading(true)
+    // 1. Carregar transcrições
     const { data, error } = await supabase
       .from('transcricoes')
       .select('*')
       .order('created_at', { ascending: false })
+
     if (error) {
       console.error(error)
       setLoading(false)
@@ -68,21 +71,35 @@ export default function Transcricoes() {
     }
     setTranscricoes(data || [])
 
-    // Carregar guias existentes para todas as tensões
+    // 2. Carregar TODOS os guias de uma só vez (otimizado)
+    const { data: todosGuias, error: guiasError } = await supabase
+      .from('guias_profundas')
+      .select('*')
+
+    if (guiasError) {
+      console.error(guiasError)
+      setLoading(false)
+      return
+    }
+
+    // Criar um mapa rápido: tensao_texto -> guia
+    const guiaPorTexto = new Map()
+    for (const guia of todosGuias || []) {
+      if (guia.tensao_texto) {
+        guiaPorTexto.set(guia.tensao_texto, guia)
+      }
+    }
+
+    // Montar o objeto guiasPorTensao para cada tensão
     const guiasMap = {}
     for (const trans of data || []) {
       if (trans.temas_brutos && Array.isArray(trans.temas_brutos)) {
         for (let idx = 0; idx < trans.temas_brutos.length; idx++) {
           const tensao = trans.temas_brutos[idx]
           const key = `${trans.id}_${idx}`
-          // Buscar guia pelo texto da tensão (pode ser impreciso? mas funciona)
-          const { data: guia } = await supabase
-            .from('guias_profundas')
-            .select('*')
-            .eq('tensao_texto', tensao.tensao || tensao.tema)
-            .maybeSingle()
-          if (guia) {
-            guiasMap[key] = guia
+          const textoChave = tensao.tensao || tensao.tema
+          if (textoChave && guiaPorTexto.has(textoChave)) {
+            guiasMap[key] = guiaPorTexto.get(textoChave)
           }
         }
       }
@@ -127,71 +144,59 @@ export default function Transcricoes() {
     if (gerandoTensao[key]) return
     setGerandoTensao(prev => ({ ...prev, [key]: true }))
     try {
-      // Verificar se já existe guia pelo texto da tensão
-      const { data: guiaExistente } = await supabase
-        .from('guias_profundas')
-        .select('*')
-        .eq('tensao_texto', tensao.tensao)
-        .maybeSingle()
-
-      let guia
-      if (guiaExistente) {
-        guia = guiaExistente
-      } else {
-        // Salvar a tensão se necessário
-        let tensaoId = tensao.id
-        if (!tensaoId) {
-          const { data: tensaoInserida, error: tensaoError } = await supabase
-            .from('tensoes')
-            .insert({
-              transcricao_id: transcricao.id,
-              tensao: tensao.tensao,
-              emocao: tensao.emocao,
-              antagonista: tensao.antagonista,
-              gatilhos: tensao.gatilhos || [],
-              cenas: tensao.cenas_sugeridas || [],
-              frases_do_video: tensao.frases_do_video || [],
-              formato_ideal: tensao.formato_ideal,
-              potencial_viral: tensao.potencial_viral || 5,
-              publico_sugerido: tensao.publico_sugerido || 'corretor',
-              status: 'pendente'
-            })
-            .select()
-          if (tensaoError) throw tensaoError
-          tensaoId = tensaoInserida[0].id
-        }
-
-        // Chamar a Edge Function
-        const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/gerar-guia`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`
-          },
-          body: JSON.stringify({
-            tensao_id: tensaoId,
-            tensao_texto: tensao.tensao
+      // Verificar se já existe guia (novamente, para evitar duplicidade)
+      let tensaoId = tensao.id
+      if (!tensaoId) {
+        // Inserir a tensão se ainda não existir
+        const { data: tensaoInserida, error: tensaoError } = await supabase
+          .from('tensoes')
+          .insert({
+            transcricao_id: transcricao.id,
+            tensao: tensao.tensao,
+            emocao: tensao.emocao,
+            antagonista: tensao.antagonista,
+            gatilhos: tensao.gatilhos || [],
+            cenas: tensao.cenas_sugeridas || [],
+            frases_do_video: tensao.frases_do_video || [],
+            formato_ideal: tensao.formato_ideal,
+            potencial_viral: tensao.potencial_viral || 5,
+            publico_sugerido: tensao.publico_sugerido || 'corretor',
+            status: 'pendente'
           })
-        })
-
-        const result = await response.json()
-        if (!response.ok) throw new Error(result.error || 'Erro na Edge Function')
-
-        // Aguardar um pouco para o banco processar a inserção/atualização
-        await new Promise(resolve => setTimeout(resolve, 500))
-
-        // Buscar a guia recém-criada
-        const { data: guiaSalvo, error: guiaError } = await supabase
-          .from('guias_profundas')
-          .select('*')
-          .eq('tensao_id', tensaoId)
-          .single()
-        if (guiaError) throw guiaError
-        guia = guiaSalvo
+          .select()
+        if (tensaoError) throw tensaoError
+        tensaoId = tensaoInserida[0].id
       }
 
-      // Atualizar o estado com a guia (seja existente ou nova)
-      setGuiasPorTensao(prev => ({ ...prev, [key]: guia }))
+      // Chamar a Edge Function
+      const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/gerar-guia`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`
+        },
+        body: JSON.stringify({
+          tensao_id: tensaoId,
+          tensao_texto: tensao.tensao
+        })
+      })
+
+      const result = await response.json()
+      if (!response.ok) throw new Error(result.error || 'Erro na Edge Function')
+
+      // Aguardar a finalização da inserção/atualização
+      await new Promise(resolve => setTimeout(resolve, 800))
+
+      // Buscar o guia recém‑criado
+      const { data: guiaSalvo, error: guiaError } = await supabase
+        .from('guias_profundas')
+        .select('*')
+        .eq('tensao_id', tensaoId)
+        .single()
+      if (guiaError) throw guiaError
+
+      // Atualizar o estado
+      setGuiasPorTensao(prev => ({ ...prev, [key]: guiaSalvo }))
       setGuiasAbertos(prev => ({ ...prev, [key]: true }))
     } catch (err) {
       console.error(err)
