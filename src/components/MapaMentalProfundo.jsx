@@ -123,7 +123,7 @@ export default function MapaMentalProfundo({ guia, onClose, onRecriar }) {
               <div>
                 <div className="text-[10px] uppercase text-white/30 mb-2">Comportamentos observáveis</div>
                 <ul className="space-y-2">
-                  {guia.como_isso_aparece_na_vida_real?.map((item, i) => (
+                  {(guia.como_aparece_na_vida_real || guia.como_isso_aparece_na_vida_real || []).map((item, i) => (
                     <li key={i} className="flex gap-2 text-sm text-white/70">
                       <span className="text-amber-400">→</span>
                       {item}
@@ -131,23 +131,88 @@ export default function MapaMentalProfundo({ guia, onClose, onRecriar }) {
                   ))}
                 </ul>
               </div>
-              <div>
-                <div className="text-[10px] uppercase text-white/30 mb-2">🪞 O que essa pessoa ACREDITA</div>
-                <ul className="space-y-2">
-                  {guia.o_que_essa_pessoa_acredita?.map((crenca, i) => (
-                    <li key={i} className="flex gap-2 text-sm text-white/70">
-                      <span className="text-violet-400">💭</span>
-                      "{crenca}"
-                    </li>
-                  ))}
-                </ul>
-              </div>
+
+              {guia.o_que_cliente_realmente_pensa && (
+                <div className="bg-violet-500/10 border-l-2 border-violet-500/30 p-3 rounded-r-lg">
+                  <div className="text-[10px] uppercase text-violet-400/70 mb-1">👁️ O QUE O CLIENTE REALMENTE PENSA</div>
+                  <p className="text-sm text-white/80 italic">"{guia.o_que_cliente_realmente_pensa}"</p>
+                </div>
+              )}
+
+              {guia.erro_invisivel && (
+                <div className="bg-amber-500/10 border-l-2 border-amber-500/30 p-3 rounded-r-lg">
+                  <div className="text-[10px] uppercase text-amber-400/70 mb-1">🧨 ERRO INVISÍVEL</div>
+                  <p className="text-sm text-white/80">{guia.erro_invisivel}</p>
+                </div>
+              )}
+
               <div className="bg-red-500/10 border-l-2 border-red-500/30 p-3 rounded-r-lg">
                 <div className="text-[10px] uppercase text-red-400/70 mb-1">💥 O QUE REALMENTE DÓI</div>
                 <p className="text-sm text-white/80">{guia.o_que_realmente_doi}</p>
               </div>
+
+              {guia.consequencia_invisivel && (
+                <div className="bg-white/5 border border-white/10 rounded-lg p-3">
+                  <div className="text-[10px] uppercase text-white/30 mb-1">⚠️ CONSEQUÊNCIA INVISÍVEL</div>
+                  <p className="text-sm text-white/70">{guia.consequencia_invisivel}</p>
+                </div>
+              )}
+
+              {guia.o_que_mercado_nao_perdoa && (
+                <div className="bg-red-500/5 border border-red-500/20 rounded-lg p-3">
+                  <div className="text-[10px] uppercase text-red-400/60 mb-1">🏛️ O QUE O MERCADO NÃO PERDOA</div>
+                  <p className="text-sm text-red-300/80">{guia.o_que_mercado_nao_perdoa}</p>
+                </div>
+              )}
             </div>
           </Section>
+
+          {/* CONTRASTE */}
+          {(guia.contraste?.fraco || guia.contraste?.comum) && (
+            <div className="border border-white/[0.06] rounded-xl overflow-hidden">
+              <div className="p-3 bg-white/[0.02]">
+                <span className="text-sm font-medium text-[#E8E6E1]">⚔️ CONTRASTE DE COMPORTAMENTO</span>
+              </div>
+              <div className="p-3 grid grid-cols-1 md:grid-cols-2 gap-3">
+                <div className="bg-red-500/10 rounded-lg p-3">
+                  <div className="text-[10px] uppercase text-red-400/70 mb-2">PROFISSIONAL FRACO</div>
+                  <ul className="space-y-1">
+                    {(guia.contraste?.fraco || (guia.contraste?.comum ? [guia.contraste.comum] : [])).map((item, i) => (
+                      <li key={i} className="flex gap-2 text-xs text-white/60">
+                        <span className="text-red-400">→</span>{item}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+                <div className="bg-emerald-500/10 rounded-lg p-3">
+                  <div className="text-[10px] uppercase text-emerald-400/70 mb-2">PROFISSIONAL FORTE</div>
+                  <ul className="space-y-1">
+                    {(guia.contraste?.forte || (guia.contraste?.especialista ? [guia.contraste.especialista] : [])).map((item, i) => (
+                      <li key={i} className="flex gap-2 text-xs text-white/60">
+                        <span className="text-emerald-400">→</span>{item}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* VISÃO PROFUNDA */}
+          {guia.visao_profunda && (
+            <div className="bg-violet-500/10 border border-violet-500/20 rounded-xl p-4">
+              <div className="text-[10px] uppercase text-violet-400/70 mb-2">🧠 O QUE ESSA PESSOA ENTENDEU SOBRE O MERCADO</div>
+              <p className="text-sm text-white/80 font-medium">{guia.visao_profunda}</p>
+            </div>
+          )}
+
+          {/* ALMA DO CONTEÚDO */}
+          {guia.alma_do_conteudo && (
+            <div className="bg-[#1a1a1c] border border-white/[0.1] rounded-xl p-4 text-center">
+              <div className="text-[10px] uppercase text-white/30 mb-2">⚡ ALMA DO CONTEÚDO</div>
+              <p className="text-base font-medium text-[#E8E6E1]">"{guia.alma_do_conteudo}"</p>
+            </div>
+          )}
 
           {/* SUBTEXTO + ENERGIA */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">

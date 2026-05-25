@@ -100,67 +100,101 @@ Para CADA tensão identificada, retorne APENAS JSON com a estrutura abaixo. TODO
   // GUIA ESTRATÉGICA (VERSÃO DEFINITIVA – COMPORTAMENTAL E VIVIDA)
   // ───────────────────────────────────────────────────────────────────────────
   extrairGuiaEstrategica: (tensao, tituloVideo = '') => `
-Você é um especialista em psicologia editorial e comportamento de mercado imobiliário.
+Você é um especialista em psicologia de mercado e comportamento humano.
 
-⚠️ REGRA DE OURO: PROIBIDO CONTEÚDO MOTIVACIONAL OU GENÉRICO.
-PROIBIDO: "importância", "construir confiança", "cuidar do cliente", "transforme vendas em conexões", "relacionamento é o ativo mais valioso".
-VOCÊ DEVE GERAR APENAS COMPORTAMENTOS OBSERVÁVEIS, VERGONHA SOCIAL, CONTRASTE E UMA FRASE QUE FIQUE NA CABEÇA.
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+OBJETIVO: EXTRAÇÃO DE TENSÃO HUMANA REAL
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
+NÃO resuma o assunto.
+NÃO liste ensinamentos genéricos.
+NÃO crie conteúdo motivacional.
+
+Traduza: "O que essa tensão revela sobre comportamento humano e mercado?"
+
+A guia precisa gerar CLAREZA MENTAL — não roteiro.
+Quem lê deve entender profundamente o comportamento humano e conseguir falar sobre isso olhando pra câmera.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+PROIBIDO
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+❌ "importância de X"
+❌ "construir confiança"
+❌ "credibilidade no mercado"
+❌ "impacto do comprometimento"
+❌ qualquer linguagem corporativa ou motivacional
+❌ repetir ideias com nomes diferentes
+❌ ser abstrato ou genérico
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 TENSÃO: ${typeof tensao === 'string' ? tensao : tensao.tensao}
 ANTAGONISTA: ${tensao.antagonista || 'não informado'}
+CENAS JÁ IDENTIFICADAS: ${(tensao.cenas_reais || tensao.cenas_sugeridas || []).join(' | ') || 'não informadas'}
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-Retorne APENAS JSON com os campos abaixo. SEJA CRUELMENTE DIRETO.
+Retorne APENAS JSON. Cada campo deve adicionar informação NOVA — não repetir o anterior.
 
 {
   "publico": "corretor|proprietario|comprador|investidor",
 
+  "tensao_principal": "Frase viva e específica que descreve o conflito humano. NÃO genérica. Ex: 'Corretor que fala com tanta gente que não cria conexão com ninguém'",
+
+  "como_aparece_na_vida_real": [
+    "Comportamento observável concreto (ex: 'esquece detalhes do cliente')",
+    "Segunda cena real (ex: 'responde no automático sem personalizar')",
+    "Terceira cena real (ex: 'gagueja quando perguntam detalhes do imóvel')",
+    "Quarta cena real (ex: 'força urgência falsa pra fechar logo')"
+  ],
+
+  "erro_invisivel": "O erro psicológico que a pessoa NÃO percebe. Ex: 'Ele acha que volume significa produtividade.'",
+
+  "o_que_cliente_realmente_pensa": "Pensamento oculto do cliente que nunca é verbalizado. Ex: 'Esse corretor parece superficial.'",
+
+  "o_que_realmente_doi": "A dor emocional REAL — não superficial. RUIM: 'perder vendas'. BOM: 'trabalhar muito sem construir reputação'",
+
+  "consequencia_invisivel": "A consequência lenta e silenciosa que ninguém percebe na hora. Ex: 'vira um corretor descartável no mercado'",
+
+  "o_que_mercado_nao_perdoa": "Comportamento específico que destrói autoridade nesse contexto. Ex: 'O mercado de luxo não perdoa improviso.'",
+
+  "contraste": {
+    "fraco": [
+      "comportamento do profissional fraco 1",
+      "comportamento do profissional fraco 2",
+      "comportamento do profissional fraco 3"
+    ],
+    "forte": [
+      "comportamento do profissional forte 1",
+      "comportamento do profissional forte 2",
+      "comportamento do profissional forte 3"
+    ]
+  },
+
+  "visao_profunda": "O que essa pessoa entendeu sobre o mercado que a maioria não entende. Ex: 'Quem atende todo mundo igual nunca constrói autoridade.'",
+
+  "alma_do_conteudo": "UMA frase forte que resume toda a tensão. Memorável. Ex: 'Quantidade sem profundidade só gera cansaço.'",
+
+  "sensacao_final": "confronto|vergonha|reflexão|autoridade|ambição|urgência|sofisticação|maturidade",
+
   "sugestoes_de_gancho": [
-    "Gancho 1 (ex: 'Você some depois que vende? O cliente percebe.')",
+    "Gancho 1 — específico, sem pergunta genérica",
     "Gancho 2",
     "Gancho 3"
   ],
 
-  "direcao": "O que o vídeo precisa fazer (ex: 'provocar vergonha por abandonar cliente')",
-
-  "comportamentos_reais": [
-    "Ação concreta que mostra o erro (ex: 'não liga depois da venda')",
-    "Segunda ação (ex: 'só lembra do cliente quando precisa de indicação')",
-    "Terceira ação (ex: 'não sabe o aniversário do cliente')"
-  ],
-
-  "erro_invisivel": "O que a pessoa não percebe (ex: 'acha que venda encerra no contrato, mas o negócio é confiança')",
-
-  "o_que_mercado_pensa": "Percepção social (ex: 'Cliente que se sente abandonado não indica e não volta')",
-
-  "contraste": {
-    "comum": "Comportamento do profissional medíocre (ex: 'vende e desaparece, trata cliente como número')",
-    "especialista": "Comportamento do profissional referência (ex: 'pós-venda ativo, vira consultor, ganha indicações')"
-  },
-
-  "alma_do_conteudo": "Frase inesquecível (ex: 'Cliente não é lead. Cliente é relação.')",
-
-  "sensacao_final": "Sentimento (ex: 'vergonha, responsabilidade, urgência de mudar')",
-
-  "topicos": [
-    "Tópico 1 (não genérico, ex: 'como o cliente percebe que você sumiu')",
-    "Tópico 2",
-    "Tópico 3",
-    "Tópico 4"
-  ],
-
   "frases_impacto": [
-    "Frase 1 (ex: 'Enquanto você corre atrás de lead novo, o antigo te esquece.')",
-    "Frase 2",
-    "Frase 3"
+    "Frase cortável 1 — funciona sozinha como corte ou legenda",
+    "Frase cortável 2",
+    "Frase cortável 3"
   ],
 
   "energia_ideal": {
-    "inicio": "provocativo",
-    "meio": "confrontador",
-    "final": "estratégico"
+    "inicio": "provocativo|indignado|reflexivo|frio",
+    "meio": "confrontador|analítico|pesado|irônico",
+    "final": "estratégico|seco|desconfortável|silencioso"
   },
 
-  "cta": "CTA curto (ex: 'Vai continuar sumindo ou construir reputação?')"
+  "cta": "Frase curta e polarizadora — não pergunta de marketing. Ex: 'Vai continuar assim ou vai mudar?'"
 }
 `,
 
