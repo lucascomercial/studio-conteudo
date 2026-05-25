@@ -1,0 +1,151 @@
+/* src/index.css */
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  * {
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  body {
+    background: #1A1A1E;
+    color: #E8E6E1;
+    font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Segoe UI', sans-serif;
+  }
+
+  /* Scrollbar fina */
+  ::-webkit-scrollbar       { width: 4px; height: 4px; }
+  ::-webkit-scrollbar-track { background: #2A2A2E; }
+  ::-webkit-scrollbar-thumb { background: #4A4A50; border-radius: 2px; }
+  ::-webkit-scrollbar-thumb:hover { background: #6A6A70; }
+
+  select option { background: #1A1A1E; color: #E8E6E1; }
+}
+
+@layer utilities {
+
+  /* ── GRID responsivo de cards ──────────────────────── */
+  .cards-grid {
+    display: grid;
+    gap: 0.75rem;
+    grid-template-columns: 1fr;
+  }
+  @media (min-width: 480px) {
+    .cards-grid { grid-template-columns: repeat(2, 1fr); }
+  }
+  @media (min-width: 768px) {
+    .cards-grid { grid-template-columns: repeat(2, 1fr); }
+  }
+  @media (min-width: 1024px) {
+    .cards-grid { grid-template-columns: repeat(3, 1fr); }
+  }
+  @media (min-width: 1280px) {
+    .cards-grid { grid-template-columns: repeat(4, 1fr); }
+  }
+
+  /* ── Área de filtros: scroll horizontal no mobile ─── */
+  .filters-bar {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+    padding-bottom: 2px;
+  }
+  .filters-bar::-webkit-scrollbar { display: none; }
+
+  /* ── Painel split (Transcrições) ───────────────────── */
+  .split-panel {
+    display: flex;
+    flex-direction: column;
+    height: auto;
+    min-height: 100vh;
+  }
+  .split-panel > * { width: 100%; }
+
+  @media (min-width: 768px) {
+    .split-panel {
+      flex-direction: row;
+      height: 100vh;
+    }
+    .split-panel > * { width: 50%; }
+  }
+
+  /* ── Textarea de transcrição ───────────────────────── */
+  .transcricao-input {
+    min-height: 220px;
+  }
+  @media (min-width: 768px) {
+    .transcricao-input { min-height: 300px; }
+  }
+
+  /* ── Modal: full-screen no mobile ─────────────────── */
+  .modal-box {
+    width: 100%;
+    max-width: 100%;
+    max-height: 100vh;
+    border-radius: 0;
+    margin: 0;
+  }
+  @media (min-width: 640px) {
+    .modal-box {
+      max-width: 42rem;
+      max-height: 85vh;
+      border-radius: 0.75rem;
+      margin: auto;
+    }
+  }
+
+  /* ── Tipografia responsiva ─────────────────────────── */
+  .title-lg {
+    font-size: 1rem;
+    line-height: 1.35;
+  }
+  @media (min-width: 640px) {
+    .title-lg { font-size: 1.125rem; }
+  }
+
+  /* ── Modo gravação rápida ──────────────────────────── */
+  .gravacao-wrap {
+    padding: 1.5rem 1rem 3rem;
+  }
+  @media (min-width: 640px) {
+    .gravacao-wrap { padding: 3rem 1.5rem; }
+  }
+
+  /* ── Header sticky com safe-area no iPhone ─────────── */
+  .sticky-header {
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+  }
+
+  /* ── Botões de ação: empilhar no mobile ────────────── */
+  .action-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    align-items: center;
+  }
+
+  /* ── Badge clamp: evita overflow em telas pequenas ─── */
+  .badge-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.375rem;
+    align-items: center;
+  }
+
+  /* ── Safe area iOS (notch / home bar) ──────────────── */
+  .pb-safe {
+    padding-bottom: env(safe-area-inset-bottom, 1rem);
+  }
+  .pt-safe {
+    padding-top: env(safe-area-inset-top, 0px);
+  }
+}

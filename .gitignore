@@ -1,0 +1,9 @@
+node_modules/
+.DS_Store
+dist/
+.env
+*.log
+aulas_extraidas.json
+scripts/lucas_marques_conteudo.pdf
+*.pdf
+supabase/functions/claude-proxy/
