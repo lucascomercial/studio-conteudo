@@ -111,10 +111,23 @@ function GuiaModal({ guia, onClose, onDelete, onRecriar }) {
         </div>
 
         <div className="flex-1 overflow-y-auto p-5 space-y-4">
-          {guia.gancho && (
+
+          {/* Gancho / Sugestões de gancho */}
+          {(guia.sugestoes_de_gancho?.length > 0 || guia.gancho) && (
             <div>
               <div className="text-[10px] uppercase text-white/30 mb-1">🎬 GANCHO</div>
-              <p className="text-amber-400">"{guia.gancho}"</p>
+              {guia.sugestoes_de_gancho?.length > 0
+                ? guia.sugestoes_de_gancho.map((g, i) => <p key={i} className="text-amber-400">"{g}"</p>)
+                : <p className="text-amber-400">"{guia.gancho}"</p>
+              }
+            </div>
+          )}
+
+          {/* Tensão principal */}
+          {guia.tensao_principal && (
+            <div className="bg-white/[0.04] border border-white/10 rounded-lg p-3">
+              <div className="text-[10px] uppercase text-white/30 mb-1">🎯 TENSÃO PRINCIPAL</div>
+              <p className="text-sm text-[#E8E6E1] font-medium">{guia.tensao_principal}</p>
             </div>
           )}
 
@@ -213,6 +226,79 @@ function GuiaModal({ guia, onClose, onDelete, onRecriar }) {
                 </div>
               )}
             </>
+          )}
+
+          {/* Como aparece na vida real */}
+          {guia.como_aparece_na_vida_real?.length > 0 && (
+            <div>
+              <div className="text-[10px] uppercase text-white/30 mb-1">🧍 COMO APARECE NA VIDA REAL</div>
+              <ul className="space-y-1">
+                {guia.como_aparece_na_vida_real.map((c, i) => (
+                  <li key={i} className="flex gap-2 text-sm text-white/70"><span className="text-amber-400">→</span>{c}</li>
+                ))}
+              </ul>
+            </div>
+          )}
+
+          {/* O que o cliente realmente pensa */}
+          {guia.o_que_cliente_pensa && (
+            <div className="bg-violet-500/10 border-l-2 border-violet-500/30 p-3 rounded-r-lg">
+              <div className="text-[10px] uppercase text-violet-400/70 mb-1">👁️ O QUE O CLIENTE REALMENTE PENSA</div>
+              <p className="text-sm text-white/80 italic">"{guia.o_que_cliente_pensa}"</p>
+            </div>
+          )}
+
+          {/* O que realmente dói */}
+          {guia.o_que_realmente_doi && (
+            <div className="bg-red-500/10 border-l-2 border-red-500/30 p-3 rounded-r-lg">
+              <div className="text-[10px] uppercase text-red-400/70 mb-1">💥 O QUE REALMENTE DÓI</div>
+              <p className="text-sm text-white/80">{guia.o_que_realmente_doi}</p>
+            </div>
+          )}
+
+          {/* O que o mercado não perdoa */}
+          {guia.o_que_mercado_nao_perdoa && (
+            <div className="bg-red-500/5 border border-red-500/20 rounded-lg p-3">
+              <div className="text-[10px] uppercase text-red-400/60 mb-1">🏛️ O QUE O MERCADO NÃO PERDOA</div>
+              <p className="text-sm text-red-300/80">{guia.o_que_mercado_nao_perdoa}</p>
+            </div>
+          )}
+
+          {/* Contraste */}
+          {guia.contraste && (guia.contraste.fraco || guia.contraste.comum) && (
+            <div>
+              <div className="text-[10px] uppercase text-white/30 mb-2">⚔️ CONTRASTE</div>
+              <div className="grid grid-cols-2 gap-2">
+                <div className="bg-red-500/10 rounded-lg p-2">
+                  <div className="text-xs text-red-400/70 mb-1">FRACO</div>
+                  {(guia.contraste.fraco || [guia.contraste.comum]).map((item, i) => (
+                    <p key={i} className="text-xs text-white/60">→ {item}</p>
+                  ))}
+                </div>
+                <div className="bg-emerald-500/10 rounded-lg p-2">
+                  <div className="text-xs text-emerald-400/70 mb-1">FORTE</div>
+                  {(guia.contraste.forte || [guia.contraste.especialista]).map((item, i) => (
+                    <p key={i} className="text-xs text-white/60">→ {item}</p>
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Visão profunda */}
+          {guia.visao_profunda && (
+            <div className="bg-violet-500/10 border border-violet-500/20 rounded-xl p-3">
+              <div className="text-[10px] uppercase text-violet-400/70 mb-1">🧠 O QUE ESSA PESSOA ENTENDEU</div>
+              <p className="text-sm text-white/80 font-medium">{guia.visao_profunda}</p>
+            </div>
+          )}
+
+          {/* Alma do conteúdo */}
+          {guia.alma_do_conteudo && (
+            <div className="bg-[#1a1a1c] border border-white/10 rounded-xl p-3 text-center">
+              <div className="text-[10px] uppercase text-white/30 mb-1">⚡ ALMA DO CONTEÚDO</div>
+              <p className="text-base font-medium text-[#E8E6E1]">"{guia.alma_do_conteudo}"</p>
+            </div>
           )}
 
           {guia.topicos?.length > 0 && (
@@ -603,7 +689,6 @@ export default function Roteiros() {
             guia={modalGuia}
             onClose={() => setModalGuia(null)}
             onDelete={handleDeleteGuide}
-            onRecriar={recriarGuia}
           />
         )}
       </AnimatePresence>
