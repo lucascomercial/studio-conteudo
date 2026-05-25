@@ -152,7 +152,7 @@ export default function VideoIA() {
             video_titulo: videoTitle,
             video_url: url,
             tipo: plataforma,
-            conteudo_original: transcText.substring(0, 10000),
+            conteudo_original: transcText, // 🔥 AGORA SEM TRUNCAMENTO
             resumo: dados.resumo,
             temas_brutos: tensoesExtraidas,
             status: 'processado',
