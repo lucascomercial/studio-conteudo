@@ -2,6 +2,8 @@
 import { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { supabase } from '../lib/supabase'
+import { callOpenAIJSONPremium } from '../lib/openai'
+import { prompts } from '../lib/prompts'
 
 const FORMATO_ICONES = {
   selfie_andando: '🚶 Selfie andando',
@@ -34,7 +36,7 @@ function Badge({ label, className }) {
   return <span className={`inline-flex items-center px-2 py-0.5 rounded text-[10px] font-medium ${className}`}>{label}</span>
 }
 
-function GuiaModal({ guia, onClose, onDelete }) {
+function GuiaModal({ guia, onClose, onDelete, onRecriar }) {
   const [deletando, setDeletando] = useState(false)
   const isProfundo = !!guia.o_que_isso_realmente_quer_dizer || !!guia.subtexto_escondido
 
@@ -237,7 +239,7 @@ function GuiaModal({ guia, onClose, onDelete }) {
           )}
         </div>
 
-        <div className="p-5 border-t border-white/[0.06] flex justify-end gap-3">
+        <div className="p-5 border-t border-white/[0.06] flex justify-between gap-3">
           <button
             onClick={handleDelete}
             disabled={deletando}
@@ -245,7 +247,17 @@ function GuiaModal({ guia, onClose, onDelete }) {
           >
             {deletando ? 'Excluindo...' : '🗑️ Excluir guia'}
           </button>
-          <button onClick={onClose} className="px-4 py-2 bg-white/10 rounded-lg text-sm">Fechar</button>
+          <div className="flex gap-2">
+            {onRecriar && (
+              <button
+                onClick={() => onRecriar(guia)}
+                className="px-4 py-2 bg-violet-500/20 hover:bg-violet-500/30 rounded-lg text-sm text-violet-400 transition"
+              >
+                🔄 Recriar com novo prompt
+              </button>
+            )}
+            <button onClick={onClose} className="px-4 py-2 bg-white/10 rounded-lg text-sm">Fechar</button>
+          </div>
         </div>
       </motion.div>
     </motion.div>
@@ -266,6 +278,51 @@ export default function Roteiros() {
   useEffect(() => {
     carregarDados()
   }, [])
+
+  const recriarGuia = async (guia) => {
+    if (!confirm('Recriar esta guia com o novo prompt? A guia atual será substituída.')) return
+    try {
+      // Busca a tensão original
+      const tensaoTexto = guia.tensao_texto || guia.titulo || ''
+      const tensaoObj = {
+        tensao: tensaoTexto,
+        antagonista: guia.antagonista || '',
+        cenas_reais: guia.cenas_reais || [],
+      }
+
+      const novaGuia = await callOpenAIJSONPremium(prompts.extrairGuiaEstrategica(tensaoObj))
+
+      const { error } = await supabase.from('guias_profundas').update({
+        gancho: novaGuia.sugestoes_de_gancho?.[0] || guia.gancho,
+        sugestoes_de_gancho: novaGuia.sugestoes_de_gancho,
+        direcao: novaGuia.direcao,
+        comportamentos_reais: novaGuia.comportamentos_reais,
+        como_aparece_na_vida_real: novaGuia.como_aparece_na_vida_real,
+        erro_invisivel: novaGuia.erro_invisivel,
+        o_que_cliente_pensa: novaGuia.o_que_cliente_realmente_pensa,
+        o_que_realmente_doi: novaGuia.o_que_realmente_doi,
+        consequencia_invisivel: novaGuia.consequencia_invisivel,
+        o_que_mercado_nao_perdoa: novaGuia.o_que_mercado_nao_perdoa,
+        contraste: novaGuia.contraste,
+        alma_do_conteudo: novaGuia.alma_do_conteudo,
+        visao_profunda: novaGuia.visao_profunda,
+        sensacao_final: novaGuia.sensacao_final,
+        topicos: novaGuia.topicos,
+        frases_impacto: novaGuia.frases_impacto,
+        energia_ideal: novaGuia.energia_ideal,
+        cta: novaGuia.cta,
+        publico_alvo: novaGuia.publico === 'proprietario' ? 'proprietario' : 'corretor',
+      }).eq('id', guia.id)
+
+      if (error) throw error
+      alert('✅ Guia recriada com sucesso!')
+      setModalGuia(null)
+      carregarDados()
+    } catch (err) {
+      console.error(err)
+      alert('Erro ao recriar: ' + err.message)
+    }
+  }
 
   async function carregarDados() {
     setLoading(true)
