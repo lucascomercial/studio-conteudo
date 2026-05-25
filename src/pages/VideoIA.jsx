@@ -1,11 +1,15 @@
-// src/pages/Transcricoes.jsx
-import { useState, useEffect } from 'react'
+// src/pages/VideoIA.jsx
+import { useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { supabase } from '../lib/supabase'
 import { callOpenAIJSON } from '../lib/openai'
 import { prompts } from '../lib/prompts'
 
-const TIPOS = ['podcast', 'aula', 'entrevista', 'video', 'palestra', 'livro', 'outro']
+const PLATAFORMA_INFO = {
+  youtube:   { label: 'YouTube',   icon: '▶', color: 'text-red-400', bg: 'bg-red-500/10', border: 'border-red-500/20' },
+  instagram: { label: 'Instagram', icon: '◉', color: 'text-pink-400', bg: 'bg-pink-500/10', border: 'border-pink-500/20' },
+  tiktok:    { label: 'TikTok',    icon: '♪', color: 'text-teal-400', bg: 'bg-teal-500/10', border: 'border-teal-500/20' },
+}
 
 const GATILHO_COLORS = {
   ego: 'bg-violet-500/10 text-violet-400',
@@ -14,6 +18,8 @@ const GATILHO_COLORS = {
   tempo: 'bg-blue-500/10 text-blue-400',
   prejuizo: 'bg-orange-500/10 text-orange-400',
   vergonha: 'bg-pink-500/10 text-pink-400',
+  ambicao: 'bg-emerald-500/10 text-emerald-400',
+  fracasso: 'bg-red-500/10 text-red-400',
 }
 
 const POTENCIAL_COLORS = {
@@ -29,303 +35,410 @@ const FORMATO_ICONES = {
   resposta_agressiva: '⚡ Resposta agressiva',
 }
 
-function SpinIcon() {
+function detectPlatform(url) {
+  if (/youtube\.com|youtu\.be/.test(url)) return 'youtube'
+  if (/instagram\.com/.test(url)) return 'instagram'
+  if (/tiktok\.com/.test(url)) return 'tiktok'
+  return null
+}
+
+function SpinIcon({ size = 4 }) {
   return (
-    <svg className="animate-spin w-4 h-4" viewBox="0 0 24 24" fill="none">
-      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
-      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/>
+    <svg className={`animate-spin w-${size} h-${size} shrink-0`} viewBox="0 0 24 24" fill="none">
+      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
     </svg>
   )
 }
 
-export default function Transcricoes() {
-  const [transcricoes, setTranscricoes] = useState([])
-  const [loading, setLoading] = useState(true)
-  const [expandedId, setExpandedId] = useState(null)
-  const [guiasPorTensao, setGuiasPorTensao] = useState({})
-  const [gerandoTensao, setGerandoTensao] = useState({})
-  const [guiasAbertos, setGuiasAbertos] = useState({})
+export default function VideoIA() {
+  const [url, setUrl] = useState('')
+  const [plataforma, setPlataforma] = useState(null)
+  const [fase, setFase] = useState('idle')
+  const [statusLabel, setStatusLabel] = useState('')
+  const [erro, setErro] = useState('')
+  const [tituloVideo, setTituloVideo] = useState('')
+  const [resumo, setResumo] = useState('')
+  const [tensoes, setTensoes] = useState([])
+  const [guias, setGuias] = useState({})
+  const [desdobramentos, setDesdobramentos] = useState({})
+  const [gerandoGuia, setGerandoGuia] = useState(null)
+  const [gerandoDesdob, setGerandoDesdob] = useState(null)
+  const [gravandoId, setGravandoId] = useState(null)
+  const [publicandoId, setPublicandoId] = useState(null)
 
-  const [titulo, setTitulo] = useState('')
-  const [tipo, setTipo] = useState('aula')
-  const [texto, setTexto] = useState('')
-  const [processando, setProcessando] = useState(false)
+  const handleUrlChange = (val) => {
+    setUrl(val)
+    setPlataforma(detectPlatform(val))
+    setErro('')
+  }
 
-  useEffect(() => {
-    carregarTranscricoes()
-  }, [])
-
-  async function carregarTranscricoes() {
-    setLoading(true)
+  const verificarUrlDuplicada = async (url) => {
     const { data, error } = await supabase
       .from('transcricoes')
-      .select('*')
+      .select('id, titulo, temas_brutos, resumo, created_at, video_titulo, video_url')
+      .eq('video_url', url)
       .order('created_at', { ascending: false })
-    if (!error) setTranscricoes(data || [])
-    setLoading(false)
+      .limit(1)
+    if (error) return null
+    return data?.[0] || null
   }
 
   const handleProcessar = async () => {
-    if (!texto.trim()) return
-    setProcessando(true)
-    try {
-      const data = await callOpenAIJSON(prompts.processarTranscricao(texto, tipo, titulo))
-      const { data: inserted } = await supabase
-        .from('transcricoes')
-        .insert({
-          titulo: titulo || 'Sem título',
-          tipo,
-          conteudo_original: texto,
-          resumo: data.resumo,
-          insights: data.insights,
-          hooks_gerados: data.hooks_fortes,
-          status: 'processado',
-          roteiros_gerados: data.roteiros?.length || 0,
-        })
-        .select()
-      if (inserted) {
-        setTranscricoes(prev => [inserted[0], ...prev])
-        setTexto('')
-        setTitulo('')
+    if (!url.trim() || !plataforma) return
+
+    const existe = await verificarUrlDuplicada(url)
+    if (existe) {
+      const confirmar = confirm(
+        `⚠️ Este vídeo já foi processado em ${new Date(existe.created_at).toLocaleDateString('pt-BR')}.\n\n` +
+        `Título: "${existe.video_titulo || existe.titulo}"\n` +
+        `Tensões extraídas: ${existe.temas_brutos?.length || 0}\n\n` +
+        `Deseja REAPROVEITAR as tensões existentes?`
+      )
+      if (confirmar) {
+        setResumo(existe.resumo || '')
+        const tensoesExistentes = (existe.temas_brutos || []).map((t, idx) => ({
+          ...t,
+          id: null,
+          status: 'pendente',
+          criado_em: new Date().toISOString()
+        }))
+        setTensoes(tensoesExistentes)
+        setTituloVideo(existe.video_titulo || existe.titulo)
+        setFase('pronto')
+        return
       }
+    }
+
+    setErro('')
+    setFase('transcrevendo')
+    setStatusLabel('Extraindo transcrição...')
+    setTensoes([])
+    setGuias({})
+
+    try {
+      const res = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/video-transcript`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
+        },
+        body: JSON.stringify({ url }),
+      })
+      const data = await res.json()
+      if (data.error) throw new Error(data.error)
+      const transcText = data.text
+      const videoTitle = data.title
+      setTituloVideo(videoTitle)
+
+      setFase('extraindo')
+      setStatusLabel('Extraindo tensões narrativas...')
+      
+      const dados = await callOpenAIJSON(prompts.extrairTensoes(transcText, videoTitle))
+      setResumo(dados.resumo || '')
+      
+      const tensoesExtraidas = (dados.tensoes || []).map((t, idx) => ({ 
+        ...t, 
+        id: null,
+        status: 'pendente',
+        criado_em: new Date().toISOString()
+      }))
+      
+      if (tensoesExtraidas.length) {
+        const { data: transcInsert } = await supabase
+          .from('transcricoes')
+          .insert({
+            titulo: videoTitle,
+            video_titulo: videoTitle,
+            video_url: url,
+            tipo: plataforma,
+            conteudo_original: transcText.substring(0, 10000),
+            resumo: dados.resumo,
+            temas_brutos: tensoesExtraidas,
+            status: 'processado',
+            modelo_extracao: 'gpt-4o-mini'
+          })
+          .select()
+        
+        const novasTensoes = []
+        for (const tensao of tensoesExtraidas) {
+          const { data: inserted, error } = await supabase
+            .from('tensoes')
+            .insert({
+              transcricao_id: transcInsert?.[0]?.id,
+              tensao: tensao.tensao,
+              emocao: tensao.emocao,
+              antagonista: tensao.antagonista,
+              gatilhos: tensao.gatilhos,
+              cenas: tensao.cenas_reais || [],
+              frases_do_video: tensao.frases_do_video || [],
+              angulo_principal: tensao.angulo_principal,
+              angulos_secundarios: tensao.angulos_secundarios,
+              formato_ideal: tensao.formato_ideal,
+              potencial_viral: tensao.potencial_viral,
+              status: 'pendente'
+            })
+            .select()
+          if (error) {
+            console.error('Erro ao salvar tensão:', error)
+          } else if (inserted && inserted[0]) {
+            novasTensoes.push({ ...tensao, id: inserted[0].id })
+          }
+        }
+        setTensoes(novasTensoes)
+      }
+
+      setFase('pronto')
     } catch (e) {
       console.error(e)
-      alert('Erro ao processar. Verifique a conexão com a API.')
-    } finally {
-      setProcessando(false)
+      setErro(e.message)
+      setFase('erro')
     }
   }
 
-  const gerarGuiaParaTensao = async (transcricao, tensao, tensaoIndex) => {
-    const key = `${transcricao.id}_${tensaoIndex}`
-    if (gerandoTensao[key]) return
-    setGerandoTensao(prev => ({ ...prev, [key]: true }))
+  const gerarGuia = async (tensao) => {
+    if (!tensao.id || typeof tensao.id !== 'number') {
+      console.error('ID da tensão inválido:', tensao.id)
+      alert('Erro: ID da tensão inválido. Recarregue a página.')
+      return
+    }
+    const key = tensao.id
+    setGerandoGuia(key)
     try {
       const { data: guiaExistente } = await supabase
         .from('guias_profundas')
         .select('*')
-        .eq('tensao_texto', tensao.tensao)
+        .eq('tensao_id', tensao.id)
         .maybeSingle()
 
-      let guia
       if (guiaExistente) {
-        guia = guiaExistente
-      } else {
-        let tensaoId = tensao.id
-        if (!tensaoId) {
-          const { data: tensaoInserida, error: tensaoError } = await supabase
-            .from('tensoes')
-            .insert({
-              transcricao_id: transcricao.id,
-              tensao: tensao.tensao,
-              emocao: tensao.emocao,
-              antagonista: tensao.antagonista,
-              gatilhos: tensao.gatilhos || [],
-              cenas: tensao.cenas_sugeridas || [],
-              frases_do_video: tensao.frases_do_video || [],
-              formato_ideal: tensao.formato_ideal,
-              potencial_viral: tensao.potencial_viral || 5,
-              publico_sugerido: tensao.publico_sugerido || 'corretor',
-              status: 'pendente'
-            })
-            .select()
-          if (tensaoError) throw tensaoError
-          tensaoId = tensaoInserida[0].id
-        }
-
-        const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/gerar-guia`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`
-          },
-          body: JSON.stringify({
-            tensao_id: tensaoId,
-            tensao_texto: tensao.tensao
-          })
-        })
-
-        const result = await response.json()
-        if (!response.ok) throw new Error(result.error || 'Erro na Edge Function')
-
-        const { data: guiaSalvo } = await supabase
-          .from('guias_profundas')
-          .select('*')
-          .eq('tensao_id', tensaoId)
-          .single()
-        guia = guiaSalvo
+        setGuias(prev => ({ ...prev, [key]: guiaExistente }))
+        setGerandoGuia(null)
+        return
       }
 
-      setGuiasPorTensao(prev => ({ ...prev, [key]: guia }))
-      setGuiasAbertos(prev => ({ ...prev, [key]: true }))
+      const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/gerar-guia`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`
+        },
+        body: JSON.stringify({
+          tensao_id: tensao.id,
+          tensao_texto: tensao.tensao
+        })
+      })
+
+      const result = await response.json()
+      if (!response.ok) throw new Error(result.error || 'Erro na Edge Function')
+
+      const { data: guiaSalvo } = await supabase
+        .from('guias_profundas')
+        .select('*')
+        .eq('tensao_id', tensao.id)
+        .single()
+
+      setGuias(prev => ({ ...prev, [key]: guiaSalvo }))
     } catch (err) {
       console.error(err)
       alert('Erro ao gerar guia: ' + err.message)
     } finally {
-      setGerandoTensao(prev => ({ ...prev, [key]: false }))
+      setGerandoGuia(null)
     }
   }
 
-  const toggleGuia = (key) => {
-    setGuiasAbertos(prev => ({ ...prev, [key]: !prev[key] }))
+  const gerarDesdobramentos = async (tensao) => {
+    const key = tensao.id
+    setGerandoDesdob(key)
+    try {
+      const desdob = await callOpenAIJSON(prompts.gerarDesdobramentos(tensao))
+      setDesdobramentos(prev => ({ ...prev, [key]: desdob.desdobramentos || [] }))
+    } catch (err) {
+      console.error(err)
+      alert('Erro ao gerar desdobramentos: ' + err.message)
+    } finally {
+      setGerandoDesdob(null)
+    }
   }
 
+  const marcarGravado = async (tensao, guia) => {
+    setGravandoId(tensao.id)
+    try {
+      await supabase.from('historico_conteudo').insert({
+        tensao_id: tensao.id,
+        titulo: guia?.gancho?.substring(0, 100) || tensao.tensao,
+        data_gravacao: new Date().toISOString().split('T')[0],
+        gatilho_principal: tensao.gatilhos?.[0],
+        publico_alvo: 'corretor',
+        formato_usado: tensao.formato_ideal,
+        tom_usado: 'provocativo'
+      })
+      await supabase.from('tensoes').update({ status: 'gravado', gravado_em: new Date().toISOString() }).eq('id', tensao.id)
+      await supabase.from('guias_profundas').update({ status: 'gravado', updated_at: new Date().toISOString() }).eq('tensao_id', tensao.id)
+      setTensoes(prev => prev.map(t => t.id === tensao.id ? { ...t, status: 'gravado' } : t))
+      alert('✅ Vídeo marcado como gravado!')
+    } catch (err) {
+      console.error(err)
+      alert('Erro: ' + err.message)
+    } finally {
+      setGravandoId(null)
+    }
+  }
+
+  const marcarPublicado = async (tensao) => {
+    setPublicandoId(tensao.id)
+    try {
+      const link = prompt('Cole o link do vídeo publicado no Instagram:')
+      if (!link) return
+      await supabase.from('historico_conteudo').insert({
+        tensao_id: tensao.id,
+        titulo: tensao.tensao,
+        data_gravacao: new Date().toISOString().split('T')[0],
+        publicado_em: new Date().toISOString().split('T')[0],
+        link_publicacao: link,
+        gatilho_principal: tensao.gatilhos?.[0],
+        publico_alvo: 'corretor',
+        formato_usado: tensao.formato_ideal,
+        tom_usado: 'provocativo'
+      })
+      await supabase.from('tensoes').update({ status: 'publicado', publicado_em: new Date().toISOString() }).eq('id', tensao.id)
+      await supabase.from('guias_profundas').update({ status: 'publicado', updated_at: new Date().toISOString() }).eq('tensao_id', tensao.id)
+      setTensoes(prev => prev.map(t => t.id === tensao.id ? { ...t, status: 'publicado' } : t))
+      alert('✅ Vídeo publicado!')
+    } catch (err) {
+      console.error(err)
+      alert('Erro: ' + err.message)
+    } finally {
+      setPublicandoId(null)
+    }
+  }
+
+  const handleLimpar = () => {
+    setUrl('')
+    setPlataforma(null)
+    setFase('idle')
+    setErro('')
+    setTituloVideo('')
+    setResumo('')
+    setTensoes([])
+    setGuias({})
+    setDesdobramentos({})
+  }
+
+  const info = plataforma ? PLATAFORMA_INFO[plataforma] : null
+
   return (
-    <div className="flex flex-col h-full">
-      <div className="border-b border-white/[0.06] px-6 py-4">
-        <h1 className="text-sm font-medium text-[#E8E6E1]">📚 Biblioteca de Transcrições</h1>
-        <p className="text-xs text-white/30 mt-0.5">{transcricoes.length} transcrições salvas</p>
+    <div className="flex flex-col min-h-screen">
+      <div className="border-b border-white/[0.06] px-6 py-4 sticky top-0 bg-[#0C0C0E]/90 backdrop-blur z-10">
+        <h1 className="text-sm font-medium text-[#E8E6E1]">🎬 Diretor de Criação</h1>
+        <p className="text-xs text-white/30">Extraio tensões do vídeo e gero mapas mentais profundos</p>
       </div>
 
-      <div className="flex-1 overflow-y-auto p-6">
-        <div className="bg-[#111113] border border-white/[0.06] rounded-xl p-4 mb-6">
-          <h2 className="text-sm font-medium mb-3">➕ Nova Transcrição</h2>
-          <div className="flex gap-2 mb-3">
+      <div className="flex-1 flex flex-col lg:flex-row">
+        <div className="w-full lg:w-96 shrink-0 border-r border-white/[0.06] p-5 space-y-4">
+          <div>
+            <label className="text-[10px] uppercase text-white/25">Link do vídeo</label>
             <input
-              value={titulo}
-              onChange={e => setTitulo(e.target.value)}
-              placeholder="Título (opcional)..."
-              className="flex-1 bg-white/[0.04] border border-white/[0.06] rounded-lg px-3 py-2 text-sm text-[#E8E6E1] placeholder-white/20"
+              value={url}
+              onChange={e => handleUrlChange(e.target.value)}
+              placeholder="YouTube, Instagram ou TikTok..."
+              className="w-full bg-white/[0.04] border border-white/[0.06] rounded-xl px-3 py-2.5 text-sm mt-1"
             />
-            <select
-              value={tipo}
-              onChange={e => setTipo(e.target.value)}
-              className="bg-white/[0.04] border border-white/[0.06] rounded-lg px-2 py-2 text-xs text-white/50"
-            >
-              {TIPOS.map(t => <option key={t} value={t}>{t}</option>)}
-            </select>
+            {info && <div className="text-xs text-white/30 mt-1">{info.label}</div>}
           </div>
-          <textarea
-            value={texto}
-            onChange={e => setTexto(e.target.value)}
-            placeholder="Cole aqui o conteúdo da transcrição, aula, podcast ou qualquer texto..."
-            rows={4}
-            className="w-full bg-white/[0.04] border border-white/[0.06] rounded-lg px-3 py-2 text-sm text-[#E8E6E1] placeholder-white/20 resize-none"
-          />
-          <div className="flex justify-end mt-3">
-            <button
-              onClick={handleProcessar}
-              disabled={processando || !texto.trim()}
-              className="flex items-center gap-2 px-4 py-2 bg-violet-500/15 hover:bg-violet-500/25 border border-violet-500/25 rounded-lg text-sm text-violet-300 transition-all disabled:opacity-40"
-            >
-              {processando ? <><SpinIcon /> Processando...</> : <>◈ Processar Transcrição</>}
+          <div className="text-[10px] text-white/20 text-center">🔄 URLs já processadas são detectadas automaticamente</div>
+          {(fase === 'transcrevendo' || fase === 'extraindo') && <div className="flex gap-2 text-white/40"><SpinIcon /> {statusLabel}</div>}
+          {erro && <div className="text-red-400 text-sm">{erro}</div>}
+          {(fase === 'idle' || fase === 'erro') && (
+            <button onClick={handleProcessar} disabled={!plataforma || !url.trim()} className="w-full py-2.5 bg-white/10 hover:bg-white/15 rounded-xl text-sm transition">
+              Extrair tensões e gerar mapas
             </button>
-          </div>
+          )}
+          {fase === 'pronto' && <button onClick={handleLimpar} className="text-xs text-white/30 hover:text-white/60">← Novo vídeo</button>}
+          {tituloVideo && (
+            <div className="bg-white/[0.02] rounded-xl p-3">
+              <p className="text-[10px] text-white/25">🎬 Vídeo</p>
+              <p className="text-xs text-white/50 line-clamp-2">{tituloVideo}</p>
+            </div>
+          )}
+          {resumo && <div className="text-xs text-white/40 p-2 bg-white/5 rounded-lg">{resumo}</div>}
         </div>
 
-        {loading ? (
-          <div className="flex justify-center py-12 text-white/30">Carregando...</div>
-        ) : transcricoes.length === 0 ? (
-          <div className="text-center py-12 text-white/30">Nenhuma transcrição salva ainda.</div>
-        ) : (
-          <div className="space-y-4">
-            {transcricoes.map(trans => (
-              <div key={trans.id} className="bg-[#111113] border border-white/[0.06] rounded-xl overflow-hidden">
-                <button
-                  onClick={() => setExpandedId(expandedId === trans.id ? null : trans.id)}
-                  className="w-full p-4 text-left hover:bg-white/[0.02] transition flex items-start justify-between gap-4"
-                >
-                  <div>
-                    <div className="flex items-center gap-2 mb-1 flex-wrap">
-                      <span className="text-[10px] px-2 py-0.5 bg-white/10 rounded-full">{trans.tipo}</span>
-                      <span className="text-[10px] text-white/30">
-                        {new Date(trans.created_at).toLocaleDateString('pt-BR')}
-                      </span>
-                    </div>
-                    <h3 className="font-medium text-[#E8E6E1]">{trans.titulo}</h3>
-                    {trans.resumo && <p className="text-xs text-white/40 mt-1 line-clamp-2">{trans.resumo}</p>}
-                    <div className="flex items-center gap-3 mt-2">
-                      <span className="text-xs text-white/30">📊 {trans.roteiros_gerados || 0} roteiros</span>
-                      {trans.temas_brutos?.length > 0 && (
-                        <span className="text-xs text-white/30">⚡ {trans.temas_brutos.length} tensões</span>
-                      )}
-                    </div>
-                  </div>
-                  <span className="text-white/30 text-lg">{expandedId === trans.id ? '−' : '+'}</span>
-                </button>
-
-                <AnimatePresence>
-                  {expandedId === trans.id && (
-                    <motion.div
-                      initial={{ height: 0, opacity: 0 }}
-                      animate={{ height: 'auto', opacity: 1 }}
-                      exit={{ height: 0, opacity: 0 }}
-                      className="border-t border-white/[0.06]"
-                    >
-                      <div className="p-4 space-y-4">
-                        {trans.resumo && (
-                          <div>
-                            <div className="text-[10px] uppercase text-white/30 mb-1">📝 Resumo</div>
-                            <p className="text-sm text-white/60">{trans.resumo}</p>
-                          </div>
-                        )}
-
-                        {trans.temas_brutos?.length > 0 && (
-                          <div>
-                            <div className="text-[10px] uppercase text-white/30 mb-2">⚡ Tensões extraídas</div>
-                            <div className="space-y-3">
-                              {trans.temas_brutos.map((tensao, idx) => {
-                                const key = `${trans.id}_${idx}`
-                                const guia = guiasPorTensao[key]
-                                const gerando = gerandoTensao[key]
-                                const guiaAberto = guiasAbertos[key]
-                                return (
-                                  <div key={idx} className="bg-white/[0.03] rounded-lg p-3 border border-white/[0.05]">
-                                    <div className="flex justify-between items-start">
-                                      <div className="flex-1">
-                                        <p className="text-sm font-medium text-[#E8E6E1]}">{tensao.tensao || tensao.tema}</p>
-                                        <div className="flex flex-wrap gap-1.5 mt-2">
-                                          {tensao.gatilhos?.map(g => <span key={g} className={`text-[10px] px-2 py-0.5 rounded-full ${GATILHO_COLORS[g] || 'bg-white/10 text-white/40'}`}>{g}</span>)}
-                                          <span className={`text-[10px] px-2 py-0.5 rounded-full ${POTENCIAL_COLORS[tensao.potencial] || POTENCIAL_COLORS.medio}`}>
-                                            potencial: {tensao.potencial_viral || tensao.potencial || 'médio'}
-                                          </span>
-                                        </div>
-                                        {tensao.antagonista && <p className="text-xs text-white/40 mt-2">🎭 Antagonista: {tensao.antagonista}</p>}
-                                        {tensao.formato_ideal && FORMATO_ICONES[tensao.formato_ideal] && (
-                                          <p className="text-xs text-white/40 mt-1">🎬 {FORMATO_ICONES[tensao.formato_ideal]}</p>
-                                        )}
-                                      </div>
-                                      <button
-                                        onClick={() => gerarGuiaParaTensao(trans, tensao, idx)}
-                                        disabled={gerando}
-                                        className="ml-2 text-xs bg-violet-500/20 hover:bg-violet-500/30 text-violet-300 px-2 py-1 rounded whitespace-nowrap"
-                                      >
-                                        {gerando ? <SpinIcon /> : '🎬 Gerar guia profundo'}
-                                      </button>
-                                    </div>
-                                    {guia && (
-                                      <div className="mt-3">
-                                        <button
-                                          onClick={() => toggleGuia(key)}
-                                          className="text-[10px] uppercase text-white/30 hover:text-white/50 transition"
-                                        >
-                                          {guiaAberto ? '▼ Ocultar guia' : '▶ Mostrar guia'}
-                                        </button>
-                                        {guiaAberto && (
-                                          <div className="mt-2 p-3 bg-white/[0.05] rounded-md space-y-2 text-sm">
-                                            <div><span className="text-[10px] uppercase text-white/30">🎬 GANCHO</span><p className="text-amber-400">"{guia.gancho}"</p></div>
-                                            <div><span className="text-[10px] uppercase text-white/30">🧠 LINHA DE RACIOCÍNIO</span><p className="text-white/80">{guia.linha_de_raciocinio}</p></div>
-                                            <div><span className="text-[10px] uppercase text-white/30">📝 TÓPICOS</span><ul className="list-disc list-inside text-white/60 text-sm">{guia.topicos?.map((t,i)=><li key={i}>{t}</li>)}</ul></div>
-                                            <div><span className="text-[10px] uppercase text-white/30">💬 FRASES IMPACTO</span>{guia.frases_impacto?.map((f,i)=><p key={i} className="text-white/50 italic">"{f}"</p>)}</div>
-                                            <div><span className="text-[10px] uppercase text-white/30">📢 CTA</span><p className="text-emerald-400">"{guia.cta}"</p></div>
-                                          </div>
-                                        )}
-                                      </div>
-                                    )}
-                                  </div>
-                                )
-                              })}
-                            </div>
-                          </div>
-                        )}
+        <div className="flex-1 overflow-y-auto p-5">
+          {fase === 'idle' && (
+            <div className="text-center text-white/20 mt-20">
+              <p>Cole um link de vídeo para extrair tensões</p>
+              <p className="text-xs mt-2 text-white/15">O sistema vai extrair e gerar mapas mentais profundos</p>
+            </div>
+          )}
+          {(fase === 'transcrevendo' || fase === 'extraindo') && <div className="flex justify-center mt-20"><SpinIcon size={6} /></div>}
+          {fase === 'pronto' && (
+            <div className="space-y-6">
+              <h2 className="text-sm font-medium text-white/30 uppercase tracking-wider">{tensoes.length} tensões extraídas</h2>
+              {tensoes.map(tensao => {
+                const guia = guias[tensao.id]
+                const desdob = desdobramentos[tensao.id]
+                const gerando = gerandoGuia === tensao.id
+                const gerandoD = gerandoDesdob === tensao.id
+                const gravando = gravandoId === tensao.id
+                const publicando = publicandoId === tensao.id
+                return (
+                  <div key={tensao.id} className="bg-[#111113] border border-white/[0.06] rounded-xl overflow-hidden">
+                    <div className="p-4 border-b border-white/[0.06]">
+                      <div className="flex items-center justify-between gap-2 mb-2 flex-wrap">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          {tensao.gatilhos?.slice(0,2).map(g => <span key={g} className={`text-[10px] px-2 py-0.5 rounded-full ${GATILHO_COLORS[g] || 'bg-white/10'}`}>{g}</span>)}
+                          <span className={`text-[10px] px-2 py-0.5 rounded-full ${tensao.potencial_viral >= 8 ? 'bg-emerald-500/20 text-emerald-400' : tensao.potencial_viral >= 5 ? 'bg-amber-500/20 text-amber-400' : 'bg-white/10 text-white/40'}`}>
+                            potencial: {tensao.potencial_viral || 'médio'}
+                          </span>
+                          {tensao.formato_ideal && <span className="text-[10px] px-2 py-0.5 bg-violet-500/20 text-violet-300 rounded-full">{FORMATO_ICONES[tensao.formato_ideal]}</span>}
+                        </div>
+                        <span className={`text-[10px] px-2 py-1 rounded-full ${tensao.status === 'gravado' ? 'bg-amber-500/20 text-amber-400' : tensao.status === 'publicado' ? 'bg-emerald-500/20 text-emerald-400' : 'bg-white/10 text-white/30'}`}>
+                          {tensao.status === 'gravado' ? '🎬 Gravado' : tensao.status === 'publicado' ? '📱 Publicado' : '📝 Pendente'}
+                        </span>
                       </div>
-                    </motion.div>
-                  )}
-                </AnimatePresence>
-              </div>
-            ))}
-          </div>
-        )}
+                      <p className="text-base font-medium text-[#E8E6E1] leading-snug">{tensao.tensao}</p>
+                      {tensao.antagonista && <p className="text-xs text-white/40 mt-1">🎭 Antagonista: {tensao.antagonista}</p>}
+                      <div className="flex gap-2 mt-3">
+                        {!guia && <button onClick={() => gerarGuia(tensao)} disabled={gerando} className="text-xs bg-violet-500/20 hover:bg-violet-500/30 text-violet-300 px-3 py-1.5 rounded disabled:opacity-40">
+                          {gerando ? <><SpinIcon size={3} /> Gerando...</> : '🎬 Gerar mapa mental profundo'}
+                        </button>}
+                        {!desdob && guia && <button onClick={() => gerarDesdobramentos(tensao)} disabled={gerandoD} className="text-xs bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 px-3 py-1.5 rounded disabled:opacity-40">
+                          {gerandoD ? <><SpinIcon size={3} /> Gerando...</> : '🔄 Desdobramentos'}
+                        </button>}
+                      </div>
+                    </div>
+                    {guia && (
+                      <div className="p-4 space-y-4 text-sm border-t border-white/[0.05]">
+                        <div><div className="text-[10px] uppercase text-white/30">🧠 LINHA DE RACIOCÍNIO</div><p className="text-[#E8E6E1]">{guia.linha_de_raciocinio}</p></div>
+                        <div><div className="text-[10px] uppercase text-white/30">🎬 GANCHO</div><p className="text-amber-400 font-medium">"{guia.gancho}"</p></div>
+                        <div><div className="text-[10px] uppercase text-white/30">📝 TÓPICOS</div><ul className="space-y-1">{guia.topicos?.map((t,i) => <li key={i} className="flex gap-2 text-white/70"><span className="text-violet-400">→</span> {t}</li>)}</ul></div>
+                        <div><div className="text-[10px] uppercase text-white/30">💬 FRASES IMPACTO</div>{guia.frases_impacto?.map((f,i) => <p key={i} className="text-white/50 italic">"{f}"</p>)}</div>
+                        <div><div className="text-[10px] uppercase text-white/30">📢 CTA</div><p className="text-emerald-400 font-medium">"{guia.cta}"</p></div>
+                        <div className="flex gap-2 pt-3 border-t border-white/[0.06]">
+                          <button onClick={() => marcarGravado(tensao, guia)} disabled={gravando || tensao.status === 'gravado' || tensao.status === 'publicado'} className="text-xs bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-400 px-2 py-1 rounded disabled:opacity-40">
+                            {gravando ? 'Salvando...' : '🎬 Marcar gravado'}
+                          </button>
+                          <button onClick={() => marcarPublicado(tensao)} disabled={publicando || tensao.status === 'publicado'} className="text-xs bg-blue-500/20 hover:bg-blue-500/30 text-blue-400 px-2 py-1 rounded disabled:opacity-40">
+                            {publicando ? 'Salvando...' : '📱 Marcar publicado'}
+                          </button>
+                        </div>
+                      </div>
+                    )}
+                    {desdob && desdob.length > 0 && (
+                      <div className="p-4 border-t border-white/[0.05] bg-white/[0.02]">
+                        <div className="text-[10px] uppercase text-white/30 mb-2">🔄 DESDOBRAMENTOS</div>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                          {desdob.map((d,i) => <div key={i} className="text-xs p-2 bg-white/5 rounded-lg"><span className="text-violet-400">{d.formato}</span><p className="text-white/70 mt-1">{d.titulo}</p></div>)}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )
+              })}
+            </div>
+          )}
+        </div>
       </div>
     </div>
   )
