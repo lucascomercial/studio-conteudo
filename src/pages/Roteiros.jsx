@@ -603,6 +603,7 @@ export default function Roteiros() {
             guia={modalGuia}
             onClose={() => setModalGuia(null)}
             onDelete={handleDeleteGuide}
+            onRecriar={recriarGuia}
           />
         )}
       </AnimatePresence>
