@@ -151,14 +151,20 @@ export default function Transcricoes() {
         const result = await response.json()
         if (!response.ok) throw new Error(result.error || 'Erro na Edge Function')
 
-        const { data: guiaSalvo } = await supabase
+        // Aguardar um pouco para o banco processar a inserção/atualização
+        await new Promise(resolve => setTimeout(resolve, 500))
+
+        // Buscar a guia recém-criada
+        const { data: guiaSalvo, error: guiaError } = await supabase
           .from('guias_profundas')
           .select('*')
           .eq('tensao_id', tensaoId)
           .single()
+        if (guiaError) throw guiaError
         guia = guiaSalvo
       }
 
+      // Atualizar o estado com a guia (seja existente ou nova)
       setGuiasPorTensao(prev => ({ ...prev, [key]: guia }))
       setGuiasAbertos(prev => ({ ...prev, [key]: true }))
     } catch (err) {
@@ -279,7 +285,6 @@ export default function Transcricoes() {
                                       <div className="flex-1">
                                         <div className="flex items-center gap-2 flex-wrap">
                                           <p className="text-sm font-medium text-[#E8E6E1]}">{tensao.tensao || tensao.tema}</p>
-                                          {/* Indicador de guia gerado */}
                                           {guia && (
                                             <span className="inline-flex items-center gap-1 text-[10px] px-2 py-0.5 bg-emerald-500/20 text-emerald-400 rounded-full">
                                               ✅ Guia gerado
@@ -297,7 +302,6 @@ export default function Transcricoes() {
                                           <p className="text-xs text-white/40 mt-1">🎬 {FORMATO_ICONES[tensao.formato_ideal]}</p>
                                         )}
                                       </div>
-                                      {/* Botão de gerar só aparece se NÃO houver guia */}
                                       {!guia ? (
                                         <button
                                           onClick={() => gerarGuiaParaTensao(trans, tensao, idx)}
