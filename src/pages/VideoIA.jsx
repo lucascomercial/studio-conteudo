@@ -175,14 +175,7 @@ export default function VideoIA() {
               angulo_principal: tensao.angulo_principal,
               angulos_secundarios: tensao.angulos_secundarios,
               formato_ideal: tensao.formato_ideal,
-              potencial_viral: (() => {
-                const p = tensao.potencial_viral
-                if (typeof p === 'number') return p
-                if (p === 'alto') return 8
-                if (p === 'medio') return 5
-                if (p === 'baixo') return 3
-                return 5
-              })(),
+              potencial_viral: tensao.potencial_viral,
               status: 'pendente'
             })
             .select()
@@ -235,7 +228,7 @@ export default function VideoIA() {
           tensao_id: tensao.id,
           tensao_texto: tensao.tensao,
           titulo: tensao.tensao.substring(0, 80),
-          publico_alvo: guia.publico,
+          publico_alvo: ['corretor','proprietario','comprador','investidor'].includes(guia.publico) ? guia.publico : 'corretor',
           gancho: guia.sugestoes_de_gancho?.[0] || '',
           sugestoes_de_gancho: guia.sugestoes_de_gancho,
           direcao: guia.direcao,

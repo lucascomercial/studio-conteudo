@@ -124,14 +124,7 @@ export default function Transcricoes() {
             cenas: tensao.cenas_sugeridas || [],
             frases_do_video: tensao.frases_do_video || [],
             formato_ideal: tensao.formato_ideal,
-            potencial_viral: (() => {
-              const p = tensao.potencial_viral
-              if (typeof p === 'number') return p
-              if (p === 'alto') return 8
-              if (p === 'medio') return 5
-              if (p === 'baixo') return 3
-              return 5
-            })(),
+            potencial_viral: tensao.potencial_viral || 5,
             publico_sugerido: tensao.publico_sugerido || 'corretor',
             status: 'pendente'
           })
@@ -149,7 +142,7 @@ export default function Transcricoes() {
             tensao_id: tensaoId,
             tensao_texto: tensao.tensao,
             titulo: tensao.tensao.substring(0, 80),
-            publico_alvo: guiaGerado.publico,
+            publico_alvo: ['corretor','proprietario','comprador','investidor'].includes(guiaGerado.publico) ? guiaGerado.publico : 'corretor',
             gancho: guiaGerado.sugestoes_de_gancho?.[0] || '',
             sugestoes_de_gancho: guiaGerado.sugestoes_de_gancho,
             direcao: guiaGerado.direcao,
