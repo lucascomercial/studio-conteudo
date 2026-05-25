@@ -380,11 +380,34 @@ export default function Roteiros() {
     carregarDados()
   }, [])
 
+  // ============================================================
+  // RECRIAR GUIA COM BUSCA AUTOMÁTICA DO tensao_id
+  // ============================================================
   const recriarGuia = async (guia) => {
     if (!confirm('Recriar esta guia com o novo prompt? A guia atual será substituída.')) return
-    if (!guia.tensao_id) {
-      alert('❌ Esta guia não possui tensao_id. Não é possível recriar automaticamente.')
-      return
+
+    let tensaoId = guia.tensao_id
+
+    // Se não tem tensao_id, tenta buscar na tabela tensoes pelo texto da tensão
+    if (!tensaoId) {
+      const tensaoTexto = guia.tensao_texto || guia.titulo
+      if (!tensaoTexto) {
+        alert('❌ Não foi possível identificar a tensão original. Impossível recriar.')
+        return
+      }
+      const { data: tensaoEncontrada, error: buscaError } = await supabase
+        .from('tensoes')
+        .select('id')
+        .eq('tensao', tensaoTexto)
+        .maybeSingle()
+      if (buscaError || !tensaoEncontrada) {
+        console.error('Erro ao buscar tensão:', buscaError)
+        alert('❌ Não foi encontrar a tensão original no banco. Recriação manual não disponível.')
+        return
+      }
+      tensaoId = tensaoEncontrada.id
+      // Atualiza o campo tensao_id no guia para futuras recriações
+      await supabase.from('guias_profundas').update({ tensao_id: tensaoId }).eq('id', guia.id)
     }
 
     try {
@@ -395,7 +418,7 @@ export default function Roteiros() {
           'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`
         },
         body: JSON.stringify({
-          tensao_id: guia.tensao_id,
+          tensao_id: tensaoId,
           tensao_texto: guia.tensao_texto || guia.titulo
         })
       })
@@ -409,6 +432,7 @@ export default function Roteiros() {
       const { error: updateError } = await supabase
         .from('guias_profundas')
         .update({
+          tensao_id: tensaoId,
           tensao_texto: guia.tensao_texto,
           titulo: guia.titulo,
           publico_alvo: novaGuia.publico || guia.publico_alvo,
