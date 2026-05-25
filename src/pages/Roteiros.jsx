@@ -111,23 +111,10 @@ function GuiaModal({ guia, onClose, onDelete, onRecriar }) {
         </div>
 
         <div className="flex-1 overflow-y-auto p-5 space-y-4">
-
-          {/* Gancho / Sugestões de gancho */}
-          {(guia.sugestoes_de_gancho?.length > 0 || guia.gancho) && (
+          {guia.gancho && (
             <div>
               <div className="text-[10px] uppercase text-white/30 mb-1">🎬 GANCHO</div>
-              {guia.sugestoes_de_gancho?.length > 0
-                ? guia.sugestoes_de_gancho.map((g, i) => <p key={i} className="text-amber-400">"{g}"</p>)
-                : <p className="text-amber-400">"{guia.gancho}"</p>
-              }
-            </div>
-          )}
-
-          {/* Tensão principal */}
-          {guia.tensao_principal && (
-            <div className="bg-white/[0.04] border border-white/10 rounded-lg p-3">
-              <div className="text-[10px] uppercase text-white/30 mb-1">🎯 TENSÃO PRINCIPAL</div>
-              <p className="text-sm text-[#E8E6E1] font-medium">{guia.tensao_principal}</p>
+              <p className="text-amber-400">"{guia.gancho}"</p>
             </div>
           )}
 
@@ -228,79 +215,6 @@ function GuiaModal({ guia, onClose, onDelete, onRecriar }) {
             </>
           )}
 
-          {/* Como aparece na vida real */}
-          {guia.como_aparece_na_vida_real?.length > 0 && (
-            <div>
-              <div className="text-[10px] uppercase text-white/30 mb-1">🧍 COMO APARECE NA VIDA REAL</div>
-              <ul className="space-y-1">
-                {guia.como_aparece_na_vida_real.map((c, i) => (
-                  <li key={i} className="flex gap-2 text-sm text-white/70"><span className="text-amber-400">→</span>{c}</li>
-                ))}
-              </ul>
-            </div>
-          )}
-
-          {/* O que o cliente realmente pensa */}
-          {guia.o_que_cliente_pensa && (
-            <div className="bg-violet-500/10 border-l-2 border-violet-500/30 p-3 rounded-r-lg">
-              <div className="text-[10px] uppercase text-violet-400/70 mb-1">👁️ O QUE O CLIENTE REALMENTE PENSA</div>
-              <p className="text-sm text-white/80 italic">"{guia.o_que_cliente_pensa}"</p>
-            </div>
-          )}
-
-          {/* O que realmente dói */}
-          {guia.o_que_realmente_doi && (
-            <div className="bg-red-500/10 border-l-2 border-red-500/30 p-3 rounded-r-lg">
-              <div className="text-[10px] uppercase text-red-400/70 mb-1">💥 O QUE REALMENTE DÓI</div>
-              <p className="text-sm text-white/80">{guia.o_que_realmente_doi}</p>
-            </div>
-          )}
-
-          {/* O que o mercado não perdoa */}
-          {guia.o_que_mercado_nao_perdoa && (
-            <div className="bg-red-500/5 border border-red-500/20 rounded-lg p-3">
-              <div className="text-[10px] uppercase text-red-400/60 mb-1">🏛️ O QUE O MERCADO NÃO PERDOA</div>
-              <p className="text-sm text-red-300/80">{guia.o_que_mercado_nao_perdoa}</p>
-            </div>
-          )}
-
-          {/* Contraste */}
-          {guia.contraste && (guia.contraste.fraco || guia.contraste.comum) && (
-            <div>
-              <div className="text-[10px] uppercase text-white/30 mb-2">⚔️ CONTRASTE</div>
-              <div className="grid grid-cols-2 gap-2">
-                <div className="bg-red-500/10 rounded-lg p-2">
-                  <div className="text-xs text-red-400/70 mb-1">FRACO</div>
-                  {(guia.contraste.fraco || [guia.contraste.comum]).map((item, i) => (
-                    <p key={i} className="text-xs text-white/60">→ {item}</p>
-                  ))}
-                </div>
-                <div className="bg-emerald-500/10 rounded-lg p-2">
-                  <div className="text-xs text-emerald-400/70 mb-1">FORTE</div>
-                  {(guia.contraste.forte || [guia.contraste.especialista]).map((item, i) => (
-                    <p key={i} className="text-xs text-white/60">→ {item}</p>
-                  ))}
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* Visão profunda */}
-          {guia.visao_profunda && (
-            <div className="bg-violet-500/10 border border-violet-500/20 rounded-xl p-3">
-              <div className="text-[10px] uppercase text-violet-400/70 mb-1">🧠 O QUE ESSA PESSOA ENTENDEU</div>
-              <p className="text-sm text-white/80 font-medium">{guia.visao_profunda}</p>
-            </div>
-          )}
-
-          {/* Alma do conteúdo */}
-          {guia.alma_do_conteudo && (
-            <div className="bg-[#1a1a1c] border border-white/10 rounded-xl p-3 text-center">
-              <div className="text-[10px] uppercase text-white/30 mb-1">⚡ ALMA DO CONTEÚDO</div>
-              <p className="text-base font-medium text-[#E8E6E1]">"{guia.alma_do_conteudo}"</p>
-            </div>
-          )}
-
           {guia.topicos?.length > 0 && (
             <div>
               <div className="text-[10px] uppercase text-white/30 mb-1">📝 TÓPICOS</div>
@@ -381,23 +295,43 @@ export default function Roteiros() {
       const { error } = await supabase.from('guias_profundas').update({
         gancho: novaGuia.sugestoes_de_gancho?.[0] || guia.gancho,
         sugestoes_de_gancho: novaGuia.sugestoes_de_gancho,
+        tensao_principal: novaGuia.tensao_principal,
+        narrativa: novaGuia.narrativa,
+        nivel_confronto: novaGuia.nivel_confronto,
         direcao: novaGuia.direcao,
-        comportamentos_reais: novaGuia.comportamentos_reais,
+        linha_de_raciocinio: novaGuia.linha_de_raciocinio,
+        o_que_isso_realmente_quer_dizer: novaGuia.o_que_isso_realmente_quer_dizer,
+        ponto_central: novaGuia.ponto_central,
         como_aparece_na_vida_real: novaGuia.como_aparece_na_vida_real,
-        erro_invisivel: novaGuia.erro_invisivel,
-        o_que_cliente_pensa: novaGuia.o_que_cliente_realmente_pensa,
+        o_que_essa_pessoa_acredita: novaGuia.o_que_essa_pessoa_acredita,
         o_que_realmente_doi: novaGuia.o_que_realmente_doi,
-        consequencia_invisivel: novaGuia.consequencia_invisivel,
+        o_que_esta_tentando_alertar: novaGuia.o_que_esta_tentando_alertar,
+        o_que_enxergou_que_outros_nao: novaGuia.o_que_enxergou_que_outros_nao,
+        verdadeiro_problema_escondido: novaGuia.verdadeiro_problema_escondido,
+        por_que_doi_tanto: novaGuia.por_que_doi_tanto,
+        comportamento_corrigido: novaGuia.comportamento_corrigido,
+        o_que_ja_viu_na_vida_real: novaGuia.o_que_ja_viu_na_vida_real,
+        o_que_cliente_pensa: novaGuia.o_que_cliente_pensa,
         o_que_mercado_nao_perdoa: novaGuia.o_que_mercado_nao_perdoa,
         contraste: novaGuia.contraste,
-        alma_do_conteudo: novaGuia.alma_do_conteudo,
+        subtexto_escondido: novaGuia.subtexto_escondido,
         visao_profunda: novaGuia.visao_profunda,
+        alma_do_conteudo: novaGuia.alma_do_conteudo,
         sensacao_final: novaGuia.sensacao_final,
+        micro_cenas: novaGuia.micro_cenas,
+        o_que_nao_pode_faltar: novaGuia.o_que_nao_pode_faltar,
         topicos: novaGuia.topicos,
         frases_impacto: novaGuia.frases_impacto,
+        o_que_evitar: novaGuia.o_que_evitar,
         energia_ideal: novaGuia.energia_ideal,
+        tom_ideal: novaGuia.tom_ideal,
+        risco_interpretacao_errada: novaGuia.risco_interpretacao_errada,
+        consequencia_invisivel: novaGuia.consequencia_invisivel,
+        erro_invisivel: novaGuia.erro_invisivel,
+        comportamentos_reais: novaGuia.comportamentos_reais,
         cta: novaGuia.cta,
         publico_alvo: novaGuia.publico === 'proprietario' ? 'proprietario' : 'corretor',
+        potencial_viral: typeof novaGuia.potencial_viral === 'number' ? novaGuia.potencial_viral : 5,
       }).eq('id', guia.id)
 
       if (error) throw error
@@ -689,6 +623,7 @@ export default function Roteiros() {
             guia={modalGuia}
             onClose={() => setModalGuia(null)}
             onDelete={handleDeleteGuide}
+            onRecriar={recriarGuia}
           />
         )}
       </AnimatePresence>
