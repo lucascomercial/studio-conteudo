@@ -2,7 +2,7 @@
 import { useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { supabase } from '../lib/supabase'
-import { callOpenAI, callOpenAIJSON, callOpenAIJSONPremium } from '../lib/openai'
+import { callOpenAIJSON } from '../lib/openai'
 import { prompts, chunkTranscript } from '../lib/prompts'
 
 const PLATAFORMA_INFO = {
@@ -99,7 +99,7 @@ export default function VideoIA() {
         setResumo(existe.resumo || '')
         const tensoesExistentes = (existe.temas_brutos || []).map((t, idx) => ({
           ...t,
-          id: null, // será substituído ao salvar
+          id: null,
           status: 'pendente',
           criado_em: new Date().toISOString()
         }))
@@ -139,7 +139,7 @@ export default function VideoIA() {
       
       const tensoesExtraidas = (dados.tensoes || []).map((t, idx) => ({ 
         ...t, 
-        id: null, // ainda não salvo
+        id: null,
         status: 'pendente',
         criado_em: new Date().toISOString()
       }))
@@ -197,7 +197,7 @@ export default function VideoIA() {
   }
 
   // ============================================================
-  // GERAR GUIA (DIRETO, SEM EDGE FUNCTION)
+  // GERAR GUIA USANDO EDGE FUNCTION (consistente com recriarGuia)
   // ============================================================
   const gerarGuia = async (tensao) => {
     if (!tensao.id || typeof tensao.id !== 'number') {
@@ -208,6 +208,7 @@ export default function VideoIA() {
     const key = tensao.id
     setGerandoGuia(key)
     try {
+      // Verificar se já existe guia para esta tensão
       const { data: guiaExistente } = await supabase
         .from('guias_profundas')
         .select('*')
@@ -220,36 +221,33 @@ export default function VideoIA() {
         return
       }
 
-      const guia = await callOpenAIJSONPremium(prompts.extrairGuiaEstrategica(tensao))
-
-      const { data: inserted, error } = await supabase
-        .from('guias_profundas')
-        .insert({
+      // Chamar a Edge Function gerar-guia
+      const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/gerar-guia`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`
+        },
+        body: JSON.stringify({
           tensao_id: tensao.id,
-          tensao_texto: tensao.tensao,
-          titulo: tensao.tensao.substring(0, 80),
-          publico_alvo: guia.publico === 'proprietario' ? 'proprietario' : 'corretor',
-          gancho: guia.sugestoes_de_gancho?.[0] || '',
-          sugestoes_de_gancho: guia.sugestoes_de_gancho,
-          direcao: guia.direcao,
-          comportamentos_reais: guia.comportamentos_reais,
-          o_que_essa_pessoa_acredita: guia.o_que_essa_pessoa_acredita,
-          erro_invisivel: guia.erro_invisivel,
-          o_que_realmente_doi: guia.o_que_realmente_doi,
-          o_que_mercado_pensa: guia.o_que_mercado_pensa,
-          contraste: guia.contraste,
-          alma_do_conteudo: guia.alma_do_conteudo,
-          sensacao_final: guia.sensacao_final,
-          topicos: guia.topicos,
-          frases_fortes: guia.frases_impacto,
-          energia_ideal: guia.energia_ideal,
-          cta: guia.cta,
-          status: 'pendente',
+          tensao_texto: tensao.tensao
         })
-        .select()
+      })
 
-      if (error) throw error
-      setGuias(prev => ({ ...prev, [key]: inserted[0] }))
+      const result = await response.json()
+      if (!response.ok) throw new Error(result.error || 'Erro na Edge Function')
+
+      // A Edge Function retorna { success: true, guia: { ... } }
+      const novaGuia = result.guia
+
+      // Buscar o guia recém-criado (ou atualizado) para exibir
+      const { data: guiaSalvo } = await supabase
+        .from('guias_profundas')
+        .select('*')
+        .eq('tensao_id', tensao.id)
+        .single()
+
+      setGuias(prev => ({ ...prev, [key]: guiaSalvo }))
     } catch (err) {
       console.error(err)
       alert('Erro ao gerar guia: ' + err.message)
@@ -337,13 +335,6 @@ export default function VideoIA() {
   }
 
   const info = plataforma ? PLATAFORMA_INFO[plataforma] : null
-  const sugestaoTemas = [
-    "Corretor que confunde movimento com resultado",
-    "Proprietário que recusa oferta justa",
-    "Corretor sem posicionamento",
-    "Agenda cheia e conta vazia",
-    "Exclusividade mal negociada"
-  ]
 
   return (
     <div className="flex flex-col min-h-screen">

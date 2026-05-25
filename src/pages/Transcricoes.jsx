@@ -2,7 +2,7 @@
 import { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { supabase } from '../lib/supabase'
-import { callOpenAIJSON, callOpenAIJSONPremium } from '../lib/openai'
+import { callOpenAIJSON } from '../lib/openai'
 import { prompts } from '../lib/prompts'
 
 const TIPOS = ['podcast', 'aula', 'entrevista', 'video', 'palestra', 'livro', 'outro']
@@ -101,7 +101,7 @@ export default function Transcricoes() {
     if (gerandoTensao[key]) return
     setGerandoTensao(prev => ({ ...prev, [key]: true }))
     try {
-      // Verificar se já existe guia
+      // 1. Verificar se já existe guia pelo texto da tensão (fallback)
       const { data: guiaExistente } = await supabase
         .from('guias_profundas')
         .select('*')
@@ -112,57 +112,52 @@ export default function Transcricoes() {
       if (guiaExistente) {
         guia = guiaExistente
       } else {
-        // 1. Salvar a tensão primeiro (para ter ID)
-        const { data: tensaoInserida, error: tensaoError } = await supabase
-          .from('tensoes')
-          .insert({
-            transcricao_id: transcricao.id,
-            tensao: tensao.tensao,
-            emocao: tensao.emocao,
-            antagonista: tensao.antagonista,
-            gatilhos: tensao.gatilhos || [],
-            cenas: tensao.cenas_sugeridas || [],
-            frases_do_video: tensao.frases_do_video || [],
-            formato_ideal: tensao.formato_ideal,
-            potencial_viral: tensao.potencial_viral || 5,
-            publico_sugerido: tensao.publico_sugerido || 'corretor',
-            status: 'pendente'
-          })
-          .select()
-        if (tensaoError) throw tensaoError
-        const tensaoId = tensaoInserida[0].id
+        // 2. Salvar a tensão no banco (se ainda não tiver ID)
+        let tensaoId = tensao.id
+        if (!tensaoId) {
+          const { data: tensaoInserida, error: tensaoError } = await supabase
+            .from('tensoes')
+            .insert({
+              transcricao_id: transcricao.id,
+              tensao: tensao.tensao,
+              emocao: tensao.emocao,
+              antagonista: tensao.antagonista,
+              gatilhos: tensao.gatilhos || [],
+              cenas: tensao.cenas_sugeridas || [],
+              frases_do_video: tensao.frases_do_video || [],
+              formato_ideal: tensao.formato_ideal,
+              potencial_viral: tensao.potencial_viral || 5,
+              publico_sugerido: tensao.publico_sugerido || 'corretor',
+              status: 'pendente'
+            })
+            .select()
+          if (tensaoError) throw tensaoError
+          tensaoId = tensaoInserida[0].id
+        }
 
-        // 2. Gerar guia diretamente
-        const guiaGerado = await callOpenAIJSONPremium(prompts.extrairGuiaEstrategica(tensao))
-
-        // 3. Salvar guia
-        const { data: inserted, error } = await supabase
-          .from('guias_profundas')
-          .insert({
+        // 3. Chamar a Edge Function para gerar o guia
+        const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/gerar-guia`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`
+          },
+          body: JSON.stringify({
             tensao_id: tensaoId,
-            tensao_texto: tensao.tensao,
-            titulo: tensao.tensao.substring(0, 80),
-            publico_alvo: guiaGerado.publico === 'proprietario' ? 'proprietario' : 'corretor',
-            gancho: guiaGerado.sugestoes_de_gancho?.[0] || '',
-            sugestoes_de_gancho: guiaGerado.sugestoes_de_gancho,
-            direcao: guiaGerado.direcao,
-            comportamentos_reais: guiaGerado.comportamentos_reais,
-            o_que_essa_pessoa_acredita: guiaGerado.o_que_essa_pessoa_acredita,
-            erro_invisivel: guiaGerado.erro_invisivel,
-            o_que_realmente_doi: guiaGerado.o_que_realmente_doi,
-            o_que_mercado_pensa: guiaGerado.o_que_mercado_pensa,
-            contraste: guiaGerado.contraste,
-            alma_do_conteudo: guiaGerado.alma_do_conteudo,
-            sensacao_final: guiaGerado.sensacao_final,
-            topicos: guiaGerado.topicos,
-            frases_fortes: guiaGerado.frases_impacto,
-            energia_ideal: guiaGerado.energia_ideal,
-            cta: guiaGerado.cta,
-            status: 'pendente',
+            tensao_texto: tensao.tensao
           })
-          .select()
-        if (error) throw error
-        guia = inserted[0]
+        })
+
+        const result = await response.json()
+        if (!response.ok) throw new Error(result.error || 'Erro na Edge Function')
+
+        // 4. Buscar o guia salvo
+        const { data: guiaSalvo } = await supabase
+          .from('guias_profundas')
+          .select('*')
+          .eq('tensao_id', tensaoId)
+          .single()
+        guia = guiaSalvo
       }
 
       setGuiasPorTensao(prev => ({ ...prev, [key]: guia }))
