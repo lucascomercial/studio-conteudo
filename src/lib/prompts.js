@@ -152,6 +152,47 @@ EXEMPLOS DE DERIVA PROIBIDA:
 "dependência de tráfego pago" → ❌ "trabalhar muito não adianta" → ✅ "corretor virou refém da campanha — quando para, ele desaparece"
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+🚫 PROIBIÇÕES ABSOLUTAS (NOVO)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+NUNCA use linguagem de palestra, aula, LinkedIn ou desenvolvimento pessoal genérico.
+
+❌ EXPRESSÕES PROIBIDAS:
+- "a importância de"
+- "o sucesso exige"
+- "é fundamental"
+- "o mercado valoriza"
+- "aprendizado contínuo"
+- "desenvolvimento profissional"
+- "jornada de sucesso"
+
+✅ SUBSTITUA POR:
+- Observações humanas reais
+- Contradições emocionais (ex: "quer resultado rápido mas não suporta o processo")
+- Padrões psicológicos específicos
+- Cenas que qualquer corretor já viveu
+- Consequências sociais/profissionais dolorosas
+
+A guia deve soar como algo dito por alguém experiente, cansado de ver o mesmo erro acontecer. NADA de genérico.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+📋 DIRETRIZES PARA CAMPOS ESPECÍFICOS
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+1. CONTRASTE (fraco vs forte)
+   - "fraco": lista de 3-5 comportamentos observáveis que entregam imaturidade/amadorismo.
+   - "forte": lista de 3-5 comportamentos observáveis de profissional maduro.
+   Ambos devem ser CONCRETOS. Ex: "troca de estratégia toda semana" vs "mantém consistência mesmo sem resultado imediato".
+
+2. O QUE O MERCADO NÃO PERDOA
+   - Frase curta, cruel e específica. Ex: "O mercado não perdoa corretor que desiste antes de amadurecer."
+   - NADA de "falta de consistência" – isso é genérico.
+
+3. LINHA DE RACIOCÍNIO e O QUE ISSO REALMENTE QUER DIZER
+   - Devem revelar o mecanismo psicológico por trás do erro.
+   - Ex: "O corretor quer colher reputação antes de suportar o processo."
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 TENSÃO: \${typeof tensao === 'string' ? tensao : tensao.tensao}
 ANTAGONISTA: \${tensao.antagonista || 'não informado'}
 CENAS JÁ IDENTIFICADAS: \${(tensao.cenas_reais || tensao.cenas_sugeridas || []).join(' | ') || 'não informadas'}
