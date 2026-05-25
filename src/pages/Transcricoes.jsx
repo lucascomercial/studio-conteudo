@@ -373,7 +373,6 @@ export default function Transcricoes() {
           </div>
         )}
       </div>
-    </div>
 
       {/* Modal guia completo */}
       <AnimatePresence>
@@ -388,5 +387,6 @@ export default function Transcricoes() {
           />
         )}
       </AnimatePresence>
+    </div>
   )
 }
