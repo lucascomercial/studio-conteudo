@@ -30,12 +30,23 @@ const NARRATIVA_CORES = {
   confronto: 'bg-red-500/20 text-red-400',
 }
 
+function SpinIcon({ size = 4 }) {
+  return (
+    <svg className={`animate-spin w-${size} h-${size} shrink-0`} viewBox="0 0 24 24" fill="none">
+      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+    </svg>
+  )
+}
+
 function Badge({ label, className }) {
   return <span className={`inline-flex items-center px-2 py-0.5 rounded text-[10px] font-medium ${className}`}>{label}</span>
 }
 
 function GuiaModal({ guia, onClose, onDelete, onRecriar }) {
   const [deletando, setDeletando] = useState(false)
+  const [roteiro, setRoteiro] = useState(guia.roteiro_video || '')
+  const [gerandoRoteiro, setGerandoRoteiro] = useState(false)
   const isProfundo = !!guia.o_que_isso_realmente_quer_dizer || !!guia.subtexto_escondido
 
   const handleDelete = async () => {
@@ -52,6 +63,31 @@ function GuiaModal({ guia, onClose, onDelete, onRecriar }) {
       alert('Erro ao deletar: ' + err.message)
     } finally {
       setDeletando(false)
+    }
+  }
+
+  const gerarRoteiro = async () => {
+    if (gerandoRoteiro) return
+    setGerandoRoteiro(true)
+    try {
+      const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/gerar-roteiro`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ guia_id: guia.id })
+      })
+      const result = await response.json()
+      if (!response.ok) throw new Error(result.error || 'Erro na Edge Function')
+      setRoteiro(result.roteiro)
+      // Atualiza o objeto guia localmente (opcional, mas evita recarregar tudo)
+      guia.roteiro_video = result.roteiro
+    } catch (err) {
+      console.error(err)
+      alert('Erro ao gerar roteiro: ' + err.message)
+    } finally {
+      setGerandoRoteiro(false)
     }
   }
 
@@ -313,6 +349,27 @@ function GuiaModal({ guia, onClose, onDelete, onRecriar }) {
               <p className="text-emerald-400">"{guia.cta}"</p>
             </div>
           )}
+
+          {/* SEÇÃO DE ROTEIRO PARA VÍDEO */}
+          <div className="border-t border-white/[0.06] pt-4 mt-2">
+            <div className="flex justify-between items-center mb-2">
+              <div className="text-[10px] uppercase text-white/30">🎙️ ROTEIRO PARA VÍDEO</div>
+              <button
+                onClick={gerarRoteiro}
+                disabled={gerandoRoteiro}
+                className="text-xs bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-400 px-2 py-1 rounded disabled:opacity-40"
+              >
+                {gerandoRoteiro ? <SpinIcon size={3} /> : (roteiro ? 'Regenerar roteiro' : 'Gerar roteiro')}
+              </button>
+            </div>
+            {roteiro ? (
+              <div className="bg-white/5 p-3 rounded-lg whitespace-pre-wrap text-sm text-white/80 italic">
+                {roteiro}
+              </div>
+            ) : (
+              <p className="text-xs text-white/30">Clique em "Gerar roteiro" para criar um script natural e falável.</p>
+            )}
+          </div>
         </div>
 
         <div className="p-5 border-t border-white/[0.06] flex justify-between gap-3">
@@ -526,6 +583,7 @@ export default function Roteiros() {
         verdade_dificil: p.verdade_dificil,
         sinais_reais_de_desconfianca: p.sinais_reais_de_desconfianca || [],
         como_isso_vira_conteudo_de_camera: p.como_isso_vira_conteudo_de_camera,
+        roteiro_video: p.roteiro_video || '', // 🔥 NOVO CAMPO
         tipo: 'profundo',
         created_at: p.created_at || new Date(0).toISOString(),
       })),
