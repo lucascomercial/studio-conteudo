@@ -57,6 +57,18 @@ function GuiaModal({ guia, onClose, onDelete, onRecriar }) {
 
   if (!guia) return null
 
+  // Função auxiliar para exibir contraste (arrays fraco/forte ou campos comum/especialista legado)
+  const getContrasteComum = () => {
+    if (guia.contraste?.fraco) return guia.contraste.fraco.join(', ')
+    if (guia.contraste?.comum) return guia.contraste.comum
+    return 'Não especificado'
+  }
+  const getContrasteForte = () => {
+    if (guia.contraste?.forte) return guia.contraste.forte.join(', ')
+    if (guia.contraste?.especialista) return guia.contraste.especialista
+    return 'Não especificado'
+  }
+
   return (
     <motion.div
       initial={{ opacity: 0 }}
@@ -148,6 +160,91 @@ function GuiaModal({ guia, onClose, onDelete, onRecriar }) {
                   <p className="text-sm text-white/80">{guia.erro_invisivel}</p>
                 </div>
               )}
+
+              {/* CAMPOS ADICIONAIS DO PROMPT PROFUNDO */}
+              {guia.o_que_essa_pessoa_acredita?.length > 0 && (
+                <div>
+                  <div className="text-[10px] uppercase text-white/30 mb-1">💭 O QUE ESSA PESSOA ACREDITA</div>
+                  <ul className="list-disc list-inside space-y-1 text-white/70 text-sm">
+                    {guia.o_que_essa_pessoa_acredita.map((item, i) => <li key={i}>{item}</li>)}
+                  </ul>
+                </div>
+              )}
+
+              {guia.subtexto_escondido && (
+                <div className="bg-violet-500/10 border-l-2 border-violet-500/30 p-3 rounded-r-lg">
+                  <div className="text-[10px] uppercase text-violet-400/70 mb-1">🧩 SUBTEXTO ESCONDIDO</div>
+                  <p className="text-sm text-white/80 italic">{guia.subtexto_escondido}</p>
+                </div>
+              )}
+
+              {guia.visao_profunda && (
+                <div className="bg-emerald-500/10 border-l-2 border-emerald-500/30 p-3 rounded-r-lg">
+                  <div className="text-[10px] uppercase text-emerald-400/70 mb-1">🧠 VISÃO PROFUNDA</div>
+                  <p className="text-sm text-white/80">{guia.visao_profunda}</p>
+                </div>
+              )}
+
+              {guia.alma_do_conteudo && (
+                <div className="text-center p-3 border border-white/20 rounded-lg bg-white/5">
+                  <div className="text-[10px] uppercase text-white/30 mb-1">⚡ ALMA DO CONTEÚDO</div>
+                  <p className="text-lg font-bold text-amber-400">{guia.alma_do_conteudo}</p>
+                </div>
+              )}
+
+              {guia.energia_ideal && (
+                <div className="grid grid-cols-3 gap-2 text-center">
+                  <div>
+                    <div className="text-[10px] uppercase text-white/30">INÍCIO</div>
+                    <p className="text-xs text-white/80">{guia.energia_ideal.inicio}</p>
+                  </div>
+                  <div>
+                    <div className="text-[10px] uppercase text-white/30">MEIO</div>
+                    <p className="text-xs text-white/80">{guia.energia_ideal.meio}</p>
+                  </div>
+                  <div>
+                    <div className="text-[10px] uppercase text-white/30">FINAL</div>
+                    <p className="text-xs text-white/80">{guia.energia_ideal.final}</p>
+                  </div>
+                </div>
+              )}
+
+              {guia.tom_ideal && (
+                <div>
+                  <div className="text-[10px] uppercase text-white/30 mb-1">🎭 TOM IDEAL</div>
+                  <span className="text-xs bg-white/10 px-2 py-1 rounded-full">{guia.tom_ideal}</span>
+                </div>
+              )}
+
+              {guia.risco_interpretacao_errada && (
+                <div className="bg-red-500/10 border-l-2 border-red-500/30 p-3 rounded-r-lg">
+                  <div className="text-[10px] uppercase text-red-400/70 mb-1">⚠️ RISCO DE INTERPRETAÇÃO ERRADA</div>
+                  <p className="text-sm text-white/70">{guia.risco_interpretacao_errada}</p>
+                </div>
+              )}
+
+              {guia.como_aparece_na_vida_real?.length > 0 && (
+                <div>
+                  <div className="text-[10px] uppercase text-white/30 mb-1">🎬 COMO ISSO APARECE NA VIDA REAL</div>
+                  <ul className="space-y-1">
+                    {guia.como_aparece_na_vida_real.map((cena, i) => (
+                      <li key={i} className="text-sm text-white/70">→ {cena}</li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+
+              {guia.micro_cenas?.length > 0 && (
+                <div>
+                  <div className="text-[10px] uppercase text-white/30 mb-1">🎥 MICRO CENAS</div>
+                  <ul className="space-y-1">
+                    {guia.micro_cenas.map((cena, i) => (
+                      <li key={i} className="text-sm text-white/60">• {cena}</li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+
               {guia.o_que_entrega_amador?.length > 0 && (
                 <div>
                   <div className="text-[10px] uppercase text-white/30 mb-1">😬 O QUE ENTREGA O AMADOR</div>
@@ -156,39 +253,44 @@ function GuiaModal({ guia, onClose, onDelete, onRecriar }) {
                   </ul>
                 </div>
               )}
+
               {guia.o_que_cliente_pensa && (
                 <div className="bg-blue-500/10 border-l-2 border-blue-500/30 p-3 rounded-r-lg">
                   <div className="text-[10px] uppercase text-blue-400/70 mb-1">👁️ O QUE O CLIENTE REALMENTE PENSA</div>
                   <p className="text-sm text-white/80 italic">"{guia.o_que_cliente_pensa}"</p>
                 </div>
               )}
+
               {guia.contraste && (
                 <div>
                   <div className="text-[10px] uppercase text-white/30 mb-1">⚔️ CONTRASTE</div>
                   <div className="grid grid-cols-2 gap-2">
                     <div className="bg-white/5 p-2 rounded">
                       <div className="text-xs text-white/40">CORRETOR COMUM</div>
-                      <p className="text-sm text-white/70">{guia.contraste.comum}</p>
+                      <p className="text-sm text-white/70">{getContrasteComum()}</p>
                     </div>
                     <div className="bg-white/5 p-2 rounded">
                       <div className="text-xs text-white/40">ESPECIALISTA</div>
-                      <p className="text-sm text-white/70">{guia.contraste.especialista}</p>
+                      <p className="text-sm text-white/70">{getContrasteForte()}</p>
                     </div>
                   </div>
                 </div>
               )}
+
               {guia.o_que_mercado_nao_perdoa && (
                 <div className="bg-red-500/10 border-l-2 border-red-500/30 p-3 rounded-r-lg">
                   <div className="text-[10px] uppercase text-red-400/70 mb-1">🏛️ O QUE O MERCADO NÃO PERDOA</div>
                   <p className="text-sm text-white/80">{guia.o_que_mercado_nao_perdoa}</p>
                 </div>
               )}
+
               {guia.momento_virada && (
                 <div className="bg-emerald-500/10 border-l-2 border-emerald-500/30 p-3 rounded-r-lg">
                   <div className="text-[10px] uppercase text-emerald-400/70 mb-1">🔥 MOMENTO DE VIRADA</div>
                   <p className="text-sm text-white/80 italic">"{guia.momento_virada}"</p>
                 </div>
               )}
+
               {guia.sensacao_que_video_precisa_passar && (
                 <div>
                   <div className="text-[10px] uppercase text-white/30 mb-1">🎯 SENSAÇÃO QUE O VÍDEO PRECISA PASSAR</div>
@@ -197,12 +299,14 @@ function GuiaModal({ guia, onClose, onDelete, onRecriar }) {
                   </span>
                 </div>
               )}
+
               {guia.o_que_pessoa_entendeu_mercado && (
                 <div className="bg-violet-500/10 border-l-2 border-violet-500/30 p-3 rounded-r-lg">
                   <div className="text-[10px] uppercase text-violet-400/70 mb-1">🧠 O QUE A PESSOA DO VÍDEO ENTENDEU SOBRE O MERCADO</div>
                   <p className="text-sm text-white/80">{guia.o_que_pessoa_entendeu_mercado}</p>
                 </div>
               )}
+
               {guia.frase_alma_conteudo && (
                 <div className="text-center p-2 border border-white/20 rounded-lg bg-white/5">
                   <div className="text-[10px] uppercase text-white/30 mb-1">⚡ FRASE QUE RESUME A ALMA DO CONTEÚDO</div>
@@ -276,13 +380,8 @@ export default function Roteiros() {
     carregarDados()
   }, [])
 
-  // ============================================================
-  // RECRIAR GUIA USANDO A EDGE FUNCTION (evita problemas de JSON)
-  // ============================================================
   const recriarGuia = async (guia) => {
     if (!confirm('Recriar esta guia com o novo prompt? A guia atual será substituída.')) return
-
-    // Verificar se temos tensao_id (necessário para a edge function)
     if (!guia.tensao_id) {
       alert('❌ Esta guia não possui tensao_id. Não é possível recriar automaticamente.')
       return
@@ -304,27 +403,51 @@ export default function Roteiros() {
       const result = await response.json()
       if (!response.ok) throw new Error(result.error || 'Erro na Edge Function')
 
-      // A Edge Function retorna { success: true, guia: { ...campos } }
       const novaGuia = result.guia
 
-      // Atualizar o registro existente com os novos dados
+      // Atualizar o registro existente com todos os campos retornados pela Edge Function
       const { error: updateError } = await supabase
         .from('guias_profundas')
         .update({
-          gancho: novaGuia.sugestoes_de_gancho?.[0] || guia.gancho,
-          sugestoes_de_gancho: novaGuia.sugestoes_de_gancho,
+          tensao_texto: guia.tensao_texto,
+          titulo: guia.titulo,
+          publico_alvo: novaGuia.publico || guia.publico_alvo,
+          narrativa: novaGuia.narrativa,
+          emocao: novaGuia.emocao,
+          potencial_viral: typeof novaGuia.potencial_viral === 'number' ? novaGuia.potencial_viral : 5,
+          nivel_confronto: novaGuia.nivel_confronto,
+          tensao_principal: novaGuia.tensao_principal,
+          gancho: novaGuia.sugestoes_de_gancho?.[0] || '',
+          sugestoes_de_gancho: novaGuia.sugestoes_de_gancho || [],
           direcao: novaGuia.direcao,
-          comportamentos_reais: novaGuia.comportamentos_reais,
-          o_que_essa_pessoa_acredita: novaGuia.o_que_essa_pessoa_acredita,
-          erro_invisivel: novaGuia.erro_invisivel,
+          linha_de_raciocinio: novaGuia.linha_de_raciocinio,
+          o_que_isso_realmente_quer_dizer: novaGuia.o_que_isso_realmente_quer_dizer,
+          consequencia_invisivel: novaGuia.consequencia_invisivel,
+          ponto_central: novaGuia.ponto_central,
+          como_aparece_na_vida_real: novaGuia.como_aparece_na_vida_real || [],
+          o_que_essa_pessoa_acredita: novaGuia.o_que_essa_pessoa_acredita || [],
           o_que_realmente_doi: novaGuia.o_que_realmente_doi,
-          o_que_mercado_pensa: novaGuia.o_que_mercado_pensa,
+          o_que_esta_tentando_alertar: novaGuia.o_que_esta_tentando_alertar,
+          o_que_enxergou_que_outros_nao: novaGuia.o_que_enxergou_que_outros_nao,
+          verdadeiro_problema_escondido: novaGuia.verdadeiro_problema_escondido,
+          por_que_doi_tanto: novaGuia.por_que_doi_tanto,
+          comportamento_corrigido: novaGuia.comportamento_corrigido,
+          o_que_ja_viu_na_vida_real: novaGuia.o_que_ja_viu_na_vida_real || [],
+          o_que_cliente_pensa: novaGuia.o_que_cliente_pensa,
+          o_que_mercado_nao_perdoa: novaGuia.o_que_mercado_nao_perdoa,
           contraste: novaGuia.contraste,
+          subtexto_escondido: novaGuia.subtexto_escondido,
+          visao_profunda: novaGuia.visao_profunda,
           alma_do_conteudo: novaGuia.alma_do_conteudo,
           sensacao_final: novaGuia.sensacao_final,
-          topicos: novaGuia.topicos,
-          frases_fortes: novaGuia.frases_impacto,
+          micro_cenas: novaGuia.micro_cenas || [],
+          o_que_nao_pode_faltar: novaGuia.o_que_nao_pode_faltar || [],
+          topicos: novaGuia.topicos || [],
+          frases_fortes: novaGuia.frases_impacto || [],
+          o_que_evitar: novaGuia.o_que_evitar || [],
           energia_ideal: novaGuia.energia_ideal,
+          tom_ideal: novaGuia.tom_ideal,
+          risco_interpretacao_errada: novaGuia.risco_interpretacao_errada,
           cta: novaGuia.cta,
           updated_at: new Date().toISOString()
         })
@@ -334,7 +457,7 @@ export default function Roteiros() {
 
       alert('✅ Guia recriada com sucesso!')
       setModalGuia(null)
-      carregarDados() // recarrega a lista
+      carregarDados()
     } catch (err) {
       console.error('Erro ao recriar:', err)
       alert('Erro ao recriar: ' + err.message)
@@ -366,7 +489,7 @@ export default function Roteiros() {
       })),
       ...(guiasProfundos || []).map(p => ({
         id: p.id,
-        tensao_id: p.tensao_id,      // ← ADICIONADO
+        tensao_id: p.tensao_id,
         tensao_texto: p.tensao_texto,
         titulo: p.titulo || p.tensao_texto,
         gancho: p.gancho,
@@ -385,7 +508,7 @@ export default function Roteiros() {
         comportamento_corrigido: p.comportamento_corrigido,
         o_que_ele_provavelmente_ja_viu: p.o_que_ele_provavelmente_ja_viu,
         municao_argumentativa: p.municao_argumentativa,
-        como_isso_aparece_na_vida_real: p.como_isso_aparece_na_vida_real,
+        como_aparece_na_vida_real: p.como_aparece_na_vida_real,
         o_que_essa_pessoa_acredita: p.o_que_essa_pessoa_acredita,
         o_que_realmente_doi: p.o_que_realmente_doi,
         subtexto_escondido: p.subtexto_escondido,
@@ -399,6 +522,11 @@ export default function Roteiros() {
         sensacao_que_video_precisa_passar: p.sensacao_que_video_precisa_passar,
         o_que_pessoa_entendeu_mercado: p.o_que_pessoa_entendeu_mercado,
         frase_alma_conteudo: p.frase_alma_conteudo,
+        visao_profunda: p.visao_profunda,
+        alma_do_conteudo: p.alma_do_conteudo,
+        energia_ideal: p.energia_ideal,
+        tom_ideal: p.tom_ideal,
+        risco_interpretacao_errada: p.risco_interpretacao_errada,
         tipo: 'profundo',
         created_at: p.created_at || new Date(0).toISOString(),
       })),
