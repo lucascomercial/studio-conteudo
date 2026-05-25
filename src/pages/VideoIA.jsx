@@ -117,6 +117,7 @@ export default function VideoIA() {
     setGuias({})
 
     try {
+      // 1. Obter transcrição e título
       const res = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/video-transcript`, {
         method: 'POST',
         headers: {
@@ -132,62 +133,47 @@ export default function VideoIA() {
       setTituloVideo(videoTitle)
 
       setFase('extraindo')
-      setStatusLabel('Extraindo tensões narrativas...')
-      
-      const dados = await callOpenAIJSON(prompts.extrairTensoes(transcText, videoTitle))
-      setResumo(dados.resumo || '')
-      
-      const tensoesExtraidas = (dados.tensoes || []).map((t, idx) => ({ 
-        ...t, 
-        id: null,
-        status: 'pendente',
-        criado_em: new Date().toISOString()
-      }))
-      
-      if (tensoesExtraidas.length) {
-        const { data: transcInsert } = await supabase
-          .from('transcricoes')
-          .insert({
-            titulo: videoTitle,
-            video_titulo: videoTitle,
-            video_url: url,
-            tipo: plataforma,
-            conteudo_original: transcText, // 🔥 AGORA SEM TRUNCAMENTO
-            resumo: dados.resumo,
-            temas_brutos: tensoesExtraidas,
-            status: 'processado',
-            modelo_extracao: 'gpt-4o-mini'
-          })
-          .select()
-        
-        const novasTensoes = []
-        for (const tensao of tensoesExtraidas) {
-          const { data: inserted, error } = await supabase
-            .from('tensoes')
-            .insert({
-              transcricao_id: transcInsert?.[0]?.id,
-              tensao: tensao.tensao,
-              emocao: tensao.emocao,
-              antagonista: tensao.antagonista,
-              gatilhos: tensao.gatilhos,
-              cenas: tensao.cenas_reais || [],
-              frases_do_video: tensao.frases_do_video || [],
-              angulo_principal: tensao.angulo_principal,
-              angulos_secundarios: tensao.angulos_secundarios,
-              formato_ideal: tensao.formato_ideal,
-              potencial_viral: tensao.potencial_viral,
-              status: 'pendente'
-            })
-            .select()
-          if (error) {
-            console.error('Erro ao salvar tensão:', error)
-          } else if (inserted && inserted[0]) {
-            novasTensoes.push({ ...tensao, id: inserted[0].id })
-          }
-        }
-        setTensoes(novasTensoes)
-      }
+      setStatusLabel('Salvando transcrição e extraindo tensões...')
 
+      // 2. Inserir a transcrição (sem tensões ainda)
+      const { data: transcInsert, error: insertError } = await supabase
+        .from('transcricoes')
+        .insert({
+          titulo: videoTitle,
+          video_titulo: videoTitle,
+          video_url: url,
+          tipo: plataforma,
+          conteudo_original: transcText,
+          status: 'processando',
+          modelo_extracao: 'gpt-4o'
+        })
+        .select()
+
+      if (insertError) throw insertError
+      const transcId = transcInsert[0].id
+
+      // 3. Chamar a Edge Function extrair-tensoes (agora suporta transcricao_id)
+      const extrairRes = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/extrair-tensoes`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ transcricao_id: transcId })
+      })
+      const extrairData = await extrairRes.json()
+      if (!extrairRes.ok) throw new Error(extrairData.error || 'Erro na extração de tensões')
+
+      // 4. Buscar as tensões salvas para exibir
+      const { data: tensoesSalvas, error: fetchError } = await supabase
+        .from('tensoes')
+        .select('*')
+        .eq('transcricao_id', transcId)
+
+      if (fetchError) throw fetchError
+
+      setTensoes(tensoesSalvas || [])
+      setResumo(extrairData.resumo || '')
       setFase('pronto')
     } catch (e) {
       console.error(e)
