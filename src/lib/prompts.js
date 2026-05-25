@@ -3,7 +3,6 @@ const CONTEXTO_BASE = `Você é Lucas Augusto. Gestor de corretores em Brasília
 Grava reels de 90 a 120 segundos para Instagram.
 Fala como alguém que vive o mercado — não como quem escreve sobre ele.`
 
-// ─── Chunking ─────────────────────────────────────────────────────────────────
 const CHUNK_SIZE    = 25000
 const CHUNK_OVERLAP = 1500
 const MAX_CHUNKS    = 8
@@ -29,9 +28,6 @@ export function chunkTranscript(texto) {
 }
 
 export const prompts = {
-  // ───────────────────────────────────────────────────────────────────────────
-  // EXTRAÇÃO DE TENSÕES DE VÍDEOS (modelo barato - gpt-4o-mini)
-  // ───────────────────────────────────────────────────────────────────────────
   extrairTensoes: (texto, tituloVideo = '') => `
 Você é um estrategista editorial e psicólogo de comportamento de mercado.
 
@@ -44,160 +40,68 @@ Uma TENSÃO é um conflito comportamental com:
 - cenas reais que qualquer um reconheceria
 - um erro invisível que a pessoa comete sem perceber
 - uma consequência silenciosa (social, emocional, de reputação)
-- um contraste claro entre o comportamento comum e o ideal
 
 TRANSCRIÇÃO:
 ${texto.substring(0, 25000)}
 
-Para CADA tensão identificada, retorne APENAS JSON com a estrutura abaixo. TODOS os campos são obrigatórios.
-
+Retorne APENAS JSON:
 {
-  "resumo": "resumo geral do vídeo em 1 frase",
-
+  "resumo": "resumo em 1 frase",
   "tensoes": [
     {
-      "tensao": "Frase viva que descreve o comportamento problemático (ex: 'corretor que fala com tanta gente que não cria conexão com ninguém')",
-
+      "tensao": "frase viva do comportamento problemático",
       "publico_sugerido": "corretor|proprietario|comprador|investidor",
-
       "emocao": "medo|vergonha|frustracao|ansiedade|ego|prejuizo|urgencia",
-
       "gatilhos": ["ego", "dinheiro", "tempo", "frustracao"],
-
       "formato_ideal": "selfie_andando|mesa|tom_calmo|resposta_agressiva",
-
       "potencial_viral": 1-10,
-
-      "cenas_reais": [
-        "Cena concreta 1 (ex: 'esquece detalhes do cliente')",
-        "Cena concreta 2 (ex: 'responde no automático')"
-      ],
-
-      "erro_invisivel": "O que a pessoa não percebe que está errado (ex: 'Ele acha que volume significa produtividade.')",
-
-      "o_que_cliente_pensa": "Pensamento oculto do cliente (ex: 'Esse corretor parece superficial.')",
-
-      "consequencia_invisivel": "Consequência lenta e silenciosa (ex: 'vira um corretor descartável no mercado')",
-
+      "cenas_reais": ["cena 1", "cena 2"],
+      "erro_invisivel": "o que a pessoa não percebe",
+      "o_que_cliente_pensa": "pensamento oculto do cliente",
+      "consequencia_invisivel": "consequência lenta e silenciosa",
       "contraste": {
-        "comum": "Descrição do comportamento comum (ex: 'fala demais, força fechamento, busca validação')",
-        "ideal": "Descrição do comportamento ideal (ex: 'conduz com calma, transmite segurança, pensa longo prazo')"
+        "comum": "comportamento comum",
+        "ideal": "comportamento ideal"
       },
-
-      "o_que_mercado_nao_perdoa": "Comportamento que destrói autoridade (ex: 'O mercado de luxo não perdoa improviso.')",
-
-      "visao_profunda": "O que a pessoa do vídeo entendeu sobre o mercado (ex: 'Quem atende todo mundo igual nunca constrói autoridade.')",
-
-      "alma_do_conteudo": "Frase forte que resume toda a tensão (ex: 'Quantidade sem profundidade só gera cansaço.')",
-
-      "sensacao_final": "Sentimento que o vídeo precisa deixar (ex: 'confronto|vergonha|reflexão|autoridade|ambição|urgência|sofisticação|maturidade')"
+      "o_que_mercado_nao_perdoa": "comportamento que destrói autoridade",
+      "visao_profunda": "o que a pessoa entendeu sobre o mercado",
+      "alma_do_conteudo": "frase forte que resume a tensão",
+      "sensacao_final": "confronto|vergonha|reflexão|autoridade|ambição|urgência"
     }
   ]
 }
 `,
 
-  // ───────────────────────────────────────────────────────────────────────────
-  // GUIA ESTRATÉGICA (VERSÃO DEFINITIVA – COMPORTAMENTAL E VIVIDA)
-  // ───────────────────────────────────────────────────────────────────────────
   extrairGuiaEstrategica: (tensao, tituloVideo = '') => `
-Você é um estrategista editorial especializado em transformar transcrições em GUIAS DE CONTEÚDO PROFUNDAS para vídeos curtos de Instagram/TikTok.
+Você é um estrategista editorial especializado em transformar tensões em GUIAS DE CONTEÚDO PROFUNDAS.
 
-⚠️ O objetivo NÃO é criar roteiro pronto.
-O objetivo é criar uma GUIA DE ENTENDIMENTO PROFUNDO da mensagem.
-A guia precisa ajudar o criador a entender, sentir e improvisar naturalmente olhando pra câmera.
-NÃO seja superficial. Evite frases genéricas, motivacionais ou "conteúdo de coach".
+⚠️ REGRA ABSOLUTA: VOCÊ NÃO É UM SOLUCIONADOR DE PROBLEMAS
+Seu trabalho NÃO é explicar o que fazer. Seu trabalho é HABITAR A DOR.
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-⚠️ REGRA MAIS IMPORTANTE: PRESERVE A TENSÃO ORIGINAL
+🚫 PROIBIÇÃO MORTAL: NÃO PULE PARA SOLUÇÃO
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-A tensão abaixo é ESPECÍFICA. NÃO a generalize.
+❌ NUNCA transforme tensão específica em tema genérico.
 
-❌ PROIBIDO:
-- Pegar "dependência de tráfego pago" e transformar em "trabalhar muito não é bom"
-- Pegar "corretor que foge de objeção" e transformar em "comunicação é importante"
-- Pegar "proprietário que não baixa preço" e transformar em "precificação é difícil"
-
-✅ OBRIGATÓRIO:
-- Preservar o mecanismo EXATO do problema
-- Aprofundar a dor ESPECÍFICA dessa tensão
-- Encontrar a contradição psicológica REAL
-- Mostrar cenas que só fazem sentido NESSA tensão específica
-- O gancho, tópicos e CTA devem convergir para A MESMA tensão
-
-Se a tensão é "dependência de tráfego pago", tudo deve girar em torno disso:
-- dor: "quando o anúncio para, o corretor desaparece"
-- subtexto: "usa tráfego pago para esconder falta de posicionamento"
-- cta: "Seu mercado te conhece ou só conhece seus anúncios?"
+TENSÃO: ${typeof tensao === 'string' ? tensao : tensao.tensao}
+ANTAGONISTA: ${tensao.antagonista || 'não informado'}
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-⚠️ A TENSÃO ORIGINAL É SAGRADA
+🔴 CHECKPOINTS ANTI-DERIVA
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-NÃO substitua por tema mais amplo.
-NÃO derive para: produtividade · motivação · esforço · disciplina genérica · burnout.
-Todos os campos devem ORBITAR a tensão original.
-Se qualquer campo começar a derivar: CORRIJA.
+Antes de cada campo, verifique:
+1. Ainda é a mesma dor ou já virou tema?
+2. Pulei para solução antes de descrever a emoção?
+3. Um corretor sentiria vergonha/incômodo ao ler isso?
 
-Antes de gerar cada campo, responda internamente:
-→ Qual é o mecanismo INVISÍVEL desta tensão específica?
-→ Qual dependência ou contradição existe?
-→ Qual dor ESPECÍFICA essa situação gera?
-→ Qual comportamento concreto isso produz?
-→ Qual consequência social ou profissional aparece?
-
-EXEMPLOS DE DERIVA PROIBIDA:
-"foge de objeção" → ❌ "comunicação é importante" → ✅ "muda de assunto quando cliente questiona o preço"
-"proprietário não baixa preço" → ❌ "precificação é difícil" → ✅ "acredita que apego emocional tem valor de mercado"
-"dependência de tráfego pago" → ❌ "trabalhar muito não adianta" → ✅ "corretor virou refém da campanha — quando para, ele desaparece"
+Se respondeu "sim" para qualquer deriva → REESCREVA.
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-🚫 PROIBIÇÕES ABSOLUTAS (NOVO)
+Retorne APENAS JSON com todos os campos.
+HABITE A DOR, não a explique.
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-NUNCA use linguagem de palestra, aula, LinkedIn ou desenvolvimento pessoal genérico.
-
-❌ EXPRESSÕES PROIBIDAS:
-- "a importância de"
-- "o sucesso exige"
-- "é fundamental"
-- "o mercado valoriza"
-- "aprendizado contínuo"
-- "desenvolvimento profissional"
-- "jornada de sucesso"
-
-✅ SUBSTITUA POR:
-- Observações humanas reais
-- Contradições emocionais (ex: "quer resultado rápido mas não suporta o processo")
-- Padrões psicológicos específicos
-- Cenas que qualquer corretor já viveu
-- Consequências sociais/profissionais dolorosas
-
-A guia deve soar como algo dito por alguém experiente, cansado de ver o mesmo erro acontecer. NADA de genérico.
-
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-📋 DIRETRIZES PARA CAMPOS ESPECÍFICOS
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-1. CONTRASTE (fraco vs forte)
-   - "fraco": lista de 3-5 comportamentos observáveis que entregam imaturidade/amadorismo.
-   - "forte": lista de 3-5 comportamentos observáveis de profissional maduro.
-   Ambos devem ser CONCRETOS. Ex: "troca de estratégia toda semana" vs "mantém consistência mesmo sem resultado imediato".
-
-2. O QUE O MERCADO NÃO PERDOA
-   - Frase curta, cruel e específica. Ex: "O mercado não perdoa corretor que desiste antes de amadurecer."
-   - NADA de "falta de consistência" – isso é genérico.
-
-3. LINHA DE RACIOCÍNIO e O QUE ISSO REALMENTE QUER DIZER
-   - Devem revelar o mecanismo psicológico por trás do erro.
-   - Ex: "O corretor quer colher reputação antes de suportar o processo."
-
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-TENSÃO: \${typeof tensao === 'string' ? tensao : tensao.tensao}
-ANTAGONISTA: \${tensao.antagonista || 'não informado'}
-CENAS JÁ IDENTIFICADAS: \${(tensao.cenas_reais || tensao.cenas_sugeridas || []).join(' | ') || 'não informadas'}
-
-Retorne APENAS JSON com todos os campos abaixo. Seja cruelmente específico e humano.
 
 {
   "publico": "corretor|proprietario|comprador|investidor",
@@ -205,222 +109,100 @@ Retorne APENAS JSON com todos os campos abaixo. Seja cruelmente específico e hu
   "emocao": "frustracao|medo|vergonha|ambicao|ansiedade|orgulho",
   "potencial_viral": 8,
   "nivel_confronto": "fraco|medio|forte",
-
-  "tensao_principal": "Frase viva e específica — NÃO genérica. Ex: Corretor que fala com tanta gente que não cria conexão com ninguém",
-
-  "sugestoes_de_gancho": [
-    "Gancho 1 — frase curta e forte que abre o vídeo",
-    "Gancho 2",
-    "Gancho 3"
-  ],
-
-  "direcao": "Como o criador deve conduzir a fala. Ex: confronto direto, reflexão silenciosa, alerta, bastidor, provocação elegante",
-
-  "linha_de_raciocinio": "Lógica central do conteúdo em 1-3 frases",
-
-  "o_que_isso_realmente_quer_dizer": "Mensagem escondida por trás da fala",
-
-  "consequencia_invisivel": "Prejuízo silencioso que isso gera ao longo do tempo",
-
-  "ponto_central": "Ideia MAIS importante do vídeo",
-
-  "como_aparece_na_vida_real": [
-    "Cena real específica 1 — ex: cliente faz pergunta simples e o corretor trava",
-    "Cena real específica 2 — ex: corretor olha pro gerente antes de responder",
-    "Cena real específica 3 — ex: cliente percebe insegurança no tom",
-    "Cena real específica 4"
-  ],
-
-  "o_que_essa_pessoa_acredita": [
-    "Crença interna errada 1",
-    "Crença interna errada 2"
-  ],
-
-  "o_que_realmente_doi": "Dor emocional REAL desta tensão específica — não genérica. Ex para tráfego pago: perceber que depois de anos no mercado ninguém procura você espontaneamente",
-
-  "o_que_esta_tentando_alertar": "Aviso escondido no conteúdo",
-
-  "o_que_enxergou_que_outros_nao": "Percepção mais profunda que esse conteúdo possui",
-
-  "verdadeiro_problema_escondido": "Além da superfície. Ex: o corretor usa improviso para esconder insegurança",
-
-  "por_que_doi_tanto": "Impacto psicológico, social e profissional",
-
-  "comportamento_corrigido": "Qual atitude o vídeo combate",
-
-  "o_que_ja_viu_na_vida_real": [
-    "Cena que alguém experiente já testemunhou 1",
-    "Cena que alguém experiente já testemunhou 2",
-    "Cena que alguém experiente já testemunhou 3"
-  ],
-
-  "o_que_cliente_pensa": "Pensamento oculto do cliente que nunca é verbalizado",
-
-  "o_que_mercado_nao_perdoa": "Comportamento que destrói autoridade nesse contexto",
-
+  "tensao_principal": "Frase que mantém a tensão original",
+  "sugestoes_de_gancho": ["gancho 1", "gancho 2", "gancho 3"],
+  "direcao": "confronto direto|reflexão|alerta",
+  "linha_de_raciocinio": "lógica emocional do problema",
+  "o_que_isso_realmente_quer_dizer": "verdade psicológica",
+  "consequencia_invisivel": "o que a dor destrói aos poucos",
+  "ponto_central": "cerne da experiência dolorosa",
+  "como_aparece_na_vida_real": ["cena 1", "cena 2", "cena 3"],
+  "o_que_essa_pessoa_acredita": ["crença 1", "crença 2"],
+  "o_que_realmente_doi": "dor visceral",
+  "o_que_esta_tentando_alertar": "aviso escondido",
+  "o_que_enxergou_que_outros_nao": "percepção profunda",
+  "verdadeiro_problema_escondido": "além do óbvio",
+  "por_que_doi_tanto": "impacto psicológico e profissional",
+  "comportamento_corrigido": "atitude confrontada",
+  "o_que_ja_viu_na_vida_real": ["cena 1", "cena 2"],
+  "o_que_cliente_pensa": "pensamento oculto",
+  "o_que_mercado_nao_perdoa": "comportamento que destrói autoridade",
   "contraste": {
-    "fraco": [
-      "comportamento fraco 1",
-      "comportamento fraco 2",
-      "comportamento fraco 3"
-    ],
-    "forte": [
-      "comportamento forte 1",
-      "comportamento forte 2",
-      "comportamento forte 3"
-    ]
+    "fraco": ["comportamento 1", "comportamento 2"],
+    "forte": ["comportamento 1", "comportamento 2"]
   },
-
-  "subtexto_escondido": "Mensagem invisível desta tensão específica. Ex para tráfego pago: o corretor usa tráfego pago para esconder falta de posicionamento",
-
-  "visao_profunda": "O que essa pessoa entendeu que a maioria não entende",
-
-  "alma_do_conteudo": "UMA frase que resume a essência emocional. Memorável.",
-
-  "sensacao_final": "reflexao|vergonha|urgencia|ambicao|incomodo|inspiracao|confronto|maturidade",
-
-  "micro_cenas": [
-    "Cena visual rápida 1 — ex: cliente esperando resposta enquanto corretor olha o celular",
-    "Cena visual rápida 2",
-    "Cena visual rápida 3",
-    "Cena visual rápida 4"
-  ],
-
-  "o_que_nao_pode_faltar": [
-    "Elemento obrigatório na fala 1",
-    "Elemento obrigatório na fala 2"
-  ],
-
-  "topicos": [
-    "Tópico central 1",
-    "Tópico central 2",
-    "Tópico central 3"
-  ],
-
-  "frases_impacto": [
-    "Frase natural e impactante 1",
-    "Frase natural e impactante 2",
-    "Frase natural e impactante 3"
-  ],
-
-  "o_que_evitar": [
-    "Coisa que destruiria o conteúdo 1",
-    "Coisa que destruiria o conteúdo 2"
-  ],
-
+  "subtexto_escondido": "mensagem invisível",
+  "visao_profunda": "verdade que poucos enxergam",
+  "alma_do_conteudo": "frase memorável",
+  "sensacao_final": "vergonha|desconforto|reflexão",
+  "micro_cenas": ["cena 1", "cena 2", "cena 3"],
+  "o_que_nao_pode_faltar": ["elemento 1", "elemento 2"],
+  "topicos": ["tópico 1", "tópico 2", "tópico 3"],
+  "frases_impacto": ["frase 1", "frase 2", "frase 3"],
+  "o_que_evitar": ["evitar 1", "evitar 2"],
   "energia_ideal": {
-    "inicio": "provocativo|indignado|reflexivo|frio|estrategico",
-    "meio": "confrontador|analitico|pesado|ironico|mentor",
-    "final": "estrategico|seco|desconfortavel|silencioso|urgente"
+    "inicio": "provocativo",
+    "meio": "confrontador",
+    "final": "estrategico"
   },
-
-  "tom_ideal": "provocativo|estrategico|analitico|mentor|confronto|sofisticado|indignado|calmo",
-
-  "risco_interpretacao_errada": "Como esse conteúdo pode ser mal interpretado",
-
-  "cta": "CTA curto e polarizador — não pergunta de marketing"
+  "tom_ideal": "provocativo|confronto",
+  "risco_interpretacao_errada": "como pode ser mal interpretado",
+  "cta": "CTA provocativo",
+  "ferida_original": "o que criou esse comportamento",
+  "mecanismo_de_defesa": "como tenta se proteger",
+  "comportamento_social_visivel": ["comportamento 1", "comportamento 2"],
+  "verdade_dificil": "o que ninguém quer admitir",
+  "sinais_reais_de_desconfianca": ["sinal 1", "sinal 2"],
+  "como_isso_vira_conteudo_de_camera": "frase natural para a câmera"
 }
 `,
+
   extrairTensoesDeAulaAvancado: (conteudoAula, tituloAula = '') => `
 Você é um Diretor Editorial especializado em conteúdo de mercado imobiliário.
+Transforme o conteúdo da aula em TENSÕES HUMANAS REAIS.
 
-⚠️ SUA FUNÇÃO NÃO É CRIAR CONTEÚDO GENÉRICO, MOTIVACIONAL OU "BONITO".
-Sua função é transformar tensões do mercado em guias CIRÚRGICAS: densas, humanas, específicas, SEM burocracia.
-
-════════════════════════════════════════
-REGRAS ABSOLUTAS
-════════════════════════════════════════
-
-❌ EVITE abstrações genéricas:
-   "Autoconfiança é importante", "Preparação é a chave do sucesso"
-
-✅ PREFIRA: cenas reais, comportamento humano, consequências sociais, ego profissional, perda de autoridade.
-
-NÃO use linguagem de coach. NÃO use: "acredite em você", "mindset", "basta querer".
-
-O foco é AUTORIDADE. Não motivação.
-
-════════════════════════════════════════
-CONTEÚDO DA AULA
-════════════════════════════════════════
 TÍTULO: ${tituloAula}
+CONTEÚDO: ${typeof conteudoAula === 'string' ? conteudoAula.substring(0, 15000) : JSON.stringify(conteudoAula, null, 2)}
 
-CONTEÚDO:
-${typeof conteudoAula === 'string' ? conteudoAula.substring(0, 15000) : JSON.stringify(conteudoAula, null, 2)}
-
-════════════════════════════════════════
-ESTRUTURA OBRIGATÓRIA (APENAS JSON)
-════════════════════════════════════════
-
-Retorne APENAS JSON com esta estrutura EXATA:
-
+Retorne APENAS JSON:
 {
-  "resumo": "resumo geral das tensões encontradas",
+  "resumo": "resumo geral",
   "tensoes": [
     {
-      "tensao": "frase curta e viva do conflito humano",
+      "tensao": "frase do conflito humano",
       "publico": "corretor|proprietario",
       "narrativa": "ego|perda|status|confronto",
       "emocao": "medo|vergonha|prejuizo|urgencia|frustracao",
       "potencial_viral": 1-10,
-      "antagonista": "quem ou o que causa o problema",
-      "persona": "corretor_sem_posicionamento|proprietario_inseguro|corretor_cansado",
-      
-      "gancho": "frase inicial forte (máx 12 palavras)",
-      "direcao": "o que o vídeo precisa fazer emocionalmente",
+      "antagonista": "quem causa o problema",
+      "gancho": "frase inicial forte",
+      "direcao": "o que o vídeo precisa fazer",
       "linha_de_raciocinio": "lógica humana do problema",
-      
-      "o_que_isso_realmente_quer_dizer": "verdade brutal por trás do tema",
-      "consequencia_invisivel": "impacto psicológico/social que ninguém percebe",
-      
-      "comportamento_corrigido": "o comportamento que está sendo confrontado",
-      
-      "o_que_ele_provavelmente_ja_viu": [
-        "experiência real 1",
-        "experiência real 2",
-        "experiência real 3"
-      ],
-      
-      "municao_argumentativa": [
-        "argumento 1",
-        "argumento 2",
-        "argumento 3"
-      ],
-      
-      "como_isso_aparece_na_vida_real": [
-        "cena real 1",
-        "cena real 2",
-        "cena real 3"
-      ],
-      
-      "o_que_essa_pessoa_acredita": [
-        "crença errada 1",
-        "crença errada 2"
-      ],
-      
+      "o_que_isso_realmente_quer_dizer": "verdade brutal",
+      "consequencia_invisivel": "impacto psicológico/social",
+      "comportamento_corrigido": "comportamento confrontado",
+      "o_que_ele_provavelmente_ja_viu": ["experiência 1", "experiência 2"],
+      "municao_argumentativa": ["argumento 1", "argumento 2"],
+      "como_isso_aparece_na_vida_real": ["cena 1", "cena 2"],
+      "o_que_essa_pessoa_acredita": ["crença 1", "crença 2"],
       "o_que_realmente_doi": "dor emocional real",
-      
-      "topicos": ["tópico 1", "tópico 2", "tópico 3"],
-      "frases_impacto": ["frase 1", "frase 2", "frase 3"],
-      
-      "percepcao_gerada": "mentor|estrategista|especialista|experiente|vendedor",
-      "tipo_autoridade": ["mentor", "estrategista", "especialista", "lider"],
+      "topicos": ["tópico 1", "tópico 2"],
+      "frases_impacto": ["frase 1", "frase 2"],
+      "percepcao_gerada": "mentor|estrategista|especialista",
+      "tipo_autoridade": ["mentor", "estrategista"],
       "risco_interpretacao_errada": "possível interpretação negativa",
-      
       "energia_ideal": {
-        "inicio": "provocativo|analitico|indignado|reflexivo",
-        "meio": "provocativo|analitico|indignado|reflexivo",
-        "final": "provocativo|analitico|indignado|reflexivo"
+        "inicio": "provocativo",
+        "meio": "confrontador",
+        "final": "estrategico"
       },
-      
-      "formato_ideal": "selfie_andando|mesa|tom_calmo|resposta_agressiva",
+      "formato_ideal": "selfie_andando|mesa",
       "cta": "CTA curto e forte"
     }
   ]
 }
 `,
 
-  // ─── DESDOBRAMENTOS (mantido) ───────────────────────────────────────────────
   gerarDesdobramentos: (tensao) => `
 Para esta tensão, gere 4 desdobramentos:
 
@@ -436,7 +218,6 @@ Retorne JSON:
   ]
 }`,
 
-  // ─── EXTRAÇÃO DE TEMAS (fallback) ─────────────────────────────────────────
   extrairTemasBrutos: (texto, tituloVideo = '') => `
 Extraia temas do vídeo: "${tituloVideo}"
 
@@ -457,7 +238,6 @@ Retorne JSON:
   ]
 }`,
 
-  // ─── FUNÇÕES LEGADAS (manter para compatibilidade) ─────────────────────────
   processarTranscricao: (texto, tipo, tituloVideo) => `...`,
   processarChunk: (chunk, tipo, tituloVideo, chunkIndex, totalChunks) => `...`,
   consolidarChunks: (resumos, tituloVideo) => `...`,

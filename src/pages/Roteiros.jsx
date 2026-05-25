@@ -127,7 +127,6 @@ function GuiaModal({ guia, onClose, onDelete, onRecriar }) {
             </div>
           )}
 
-          {/* NOVOS CAMPOS */}
           {guia.como_isso_vira_conteudo_de_camera && (
             <div className="bg-amber-500/10 border-l-2 border-amber-500/30 p-3 rounded-r-lg">
               <div className="text-[10px] uppercase text-amber-400/70 mb-1">🎯 FRASE PARA CÂMERA</div>
