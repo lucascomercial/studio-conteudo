@@ -100,107 +100,141 @@ Para CADA tensão identificada, retorne APENAS JSON com a estrutura abaixo. TODO
   // GUIA ESTRATÉGICA (VERSÃO DEFINITIVA – COMPORTAMENTAL E VIVIDA)
   // ───────────────────────────────────────────────────────────────────────────
   extrairGuiaEstrategica: (tensao, tituloVideo = '') => `
-Você é um especialista em psicologia de mercado e comportamento humano.
+Você é um estrategista editorial especializado em transformar transcrições em GUIAS DE CONTEÚDO PROFUNDAS para vídeos curtos de Instagram/TikTok.
 
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-OBJETIVO: EXTRAÇÃO DE TENSÃO HUMANA REAL
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+⚠️ O objetivo NÃO é criar roteiro pronto.
+O objetivo é criar uma GUIA DE ENTENDIMENTO PROFUNDO da mensagem.
+A guia precisa ajudar o criador a entender, sentir e improvisar naturalmente olhando pra câmera.
+NÃO seja superficial. Evite frases genéricas, motivacionais ou "conteúdo de coach".
 
-NÃO resuma o assunto.
-NÃO liste ensinamentos genéricos.
-NÃO crie conteúdo motivacional.
+TENSÃO: \${typeof tensao === 'string' ? tensao : tensao.tensao}
+ANTAGONISTA: \${tensao.antagonista || 'não informado'}
+CENAS JÁ IDENTIFICADAS: \${(tensao.cenas_reais || tensao.cenas_sugeridas || []).join(' | ') || 'não informadas'}
 
-Traduza: "O que essa tensão revela sobre comportamento humano e mercado?"
-
-A guia precisa gerar CLAREZA MENTAL — não roteiro.
-Quem lê deve entender profundamente o comportamento humano e conseguir falar sobre isso olhando pra câmera.
-
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-PROIBIDO
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-❌ "importância de X"
-❌ "construir confiança"
-❌ "credibilidade no mercado"
-❌ "impacto do comprometimento"
-❌ qualquer linguagem corporativa ou motivacional
-❌ repetir ideias com nomes diferentes
-❌ ser abstrato ou genérico
-
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-TENSÃO: ${typeof tensao === 'string' ? tensao : tensao.tensao}
-ANTAGONISTA: ${tensao.antagonista || 'não informado'}
-CENAS JÁ IDENTIFICADAS: ${(tensao.cenas_reais || tensao.cenas_sugeridas || []).join(' | ') || 'não informadas'}
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-Retorne APENAS JSON. Cada campo deve adicionar informação NOVA — não repetir o anterior.
+Retorne APENAS JSON com todos os campos abaixo. Seja cruelmente específico e humano.
 
 {
   "publico": "corretor|proprietario|comprador|investidor",
+  "narrativa": "ego|perda|status|urgencia|confronto|fracasso_silencioso|bastidor",
+  "emocao": "frustracao|medo|vergonha|ambicao|ansiedade|orgulho",
+  "potencial_viral": 8,
+  "nivel_confronto": "fraco|medio|forte",
 
-  "tensao_principal": "Frase viva e específica que descreve o conflito humano. NÃO genérica. Ex: 'Corretor que fala com tanta gente que não cria conexão com ninguém'",
-
-  "como_aparece_na_vida_real": [
-    "Comportamento observável concreto (ex: 'esquece detalhes do cliente')",
-    "Segunda cena real (ex: 'responde no automático sem personalizar')",
-    "Terceira cena real (ex: 'gagueja quando perguntam detalhes do imóvel')",
-    "Quarta cena real (ex: 'força urgência falsa pra fechar logo')"
-  ],
-
-  "erro_invisivel": "O erro psicológico que a pessoa NÃO percebe. Ex: 'Ele acha que volume significa produtividade.'",
-
-  "o_que_cliente_realmente_pensa": "Pensamento oculto do cliente que nunca é verbalizado. Ex: 'Esse corretor parece superficial.'",
-
-  "o_que_realmente_doi": "A dor emocional REAL — não superficial. RUIM: 'perder vendas'. BOM: 'trabalhar muito sem construir reputação'",
-
-  "consequencia_invisivel": "A consequência lenta e silenciosa que ninguém percebe na hora. Ex: 'vira um corretor descartável no mercado'",
-
-  "o_que_mercado_nao_perdoa": "Comportamento específico que destrói autoridade nesse contexto. Ex: 'O mercado de luxo não perdoa improviso.'",
-
-  "contraste": {
-    "fraco": [
-      "comportamento do profissional fraco 1",
-      "comportamento do profissional fraco 2",
-      "comportamento do profissional fraco 3"
-    ],
-    "forte": [
-      "comportamento do profissional forte 1",
-      "comportamento do profissional forte 2",
-      "comportamento do profissional forte 3"
-    ]
-  },
-
-  "visao_profunda": "O que essa pessoa entendeu sobre o mercado que a maioria não entende. Ex: 'Quem atende todo mundo igual nunca constrói autoridade.'",
-
-  "alma_do_conteudo": "UMA frase forte que resume toda a tensão. Memorável. Ex: 'Quantidade sem profundidade só gera cansaço.'",
-
-  "sensacao_final": "confronto|vergonha|reflexão|autoridade|ambição|urgência|sofisticação|maturidade",
+  "tensao_principal": "Frase viva e específica — NÃO genérica. Ex: Corretor que fala com tanta gente que não cria conexão com ninguém",
 
   "sugestoes_de_gancho": [
-    "Gancho 1 — específico, sem pergunta genérica",
+    "Gancho 1 — frase curta e forte que abre o vídeo",
     "Gancho 2",
     "Gancho 3"
   ],
 
+  "direcao": "Como o criador deve conduzir a fala. Ex: confronto direto, reflexão silenciosa, alerta, bastidor, provocação elegante",
+
+  "linha_de_raciocinio": "Lógica central do conteúdo em 1-3 frases",
+
+  "o_que_isso_realmente_quer_dizer": "Mensagem escondida por trás da fala",
+
+  "consequencia_invisivel": "Prejuízo silencioso que isso gera ao longo do tempo",
+
+  "ponto_central": "Ideia MAIS importante do vídeo",
+
+  "como_aparece_na_vida_real": [
+    "Cena real específica 1 — ex: cliente faz pergunta simples e o corretor trava",
+    "Cena real específica 2 — ex: corretor olha pro gerente antes de responder",
+    "Cena real específica 3 — ex: cliente percebe insegurança no tom",
+    "Cena real específica 4"
+  ],
+
+  "o_que_essa_pessoa_acredita": [
+    "Crença interna errada 1",
+    "Crença interna errada 2"
+  ],
+
+  "o_que_realmente_doi": "Dor emocional REAL — não superficial. RUIM: perder vendas. BOM: trabalhar muito sem construir reputação",
+
+  "o_que_esta_tentando_alertar": "Aviso escondido no conteúdo",
+
+  "o_que_enxergou_que_outros_nao": "Percepção mais profunda que esse conteúdo possui",
+
+  "verdadeiro_problema_escondido": "Além da superfície. Ex: o corretor usa improviso para esconder insegurança",
+
+  "por_que_doi_tanto": "Impacto psicológico, social e profissional",
+
+  "comportamento_corrigido": "Qual atitude o vídeo combate",
+
+  "o_que_ja_viu_na_vida_real": [
+    "Cena que alguém experiente já testemunhou 1",
+    "Cena que alguém experiente já testemunhou 2",
+    "Cena que alguém experiente já testemunhou 3"
+  ],
+
+  "o_que_cliente_pensa": "Pensamento oculto do cliente que nunca é verbalizado",
+
+  "o_que_mercado_nao_perdoa": "Comportamento que destrói autoridade nesse contexto",
+
+  "contraste": {
+    "fraco": [
+      "comportamento fraco 1",
+      "comportamento fraco 2",
+      "comportamento fraco 3"
+    ],
+    "forte": [
+      "comportamento forte 1",
+      "comportamento forte 2",
+      "comportamento forte 3"
+    ]
+  },
+
+  "subtexto_escondido": "Mensagem invisível sendo passada",
+
+  "visao_profunda": "O que essa pessoa entendeu que a maioria não entende",
+
+  "alma_do_conteudo": "UMA frase que resume a essência emocional. Memorável.",
+
+  "sensacao_final": "reflexao|vergonha|urgencia|ambicao|incomodo|inspiracao|confronto|maturidade",
+
+  "micro_cenas": [
+    "Cena visual rápida 1 — ex: cliente esperando resposta enquanto corretor olha o celular",
+    "Cena visual rápida 2",
+    "Cena visual rápida 3",
+    "Cena visual rápida 4"
+  ],
+
+  "o_que_nao_pode_faltar": [
+    "Elemento obrigatório na fala 1",
+    "Elemento obrigatório na fala 2"
+  ],
+
+  "topicos": [
+    "Tópico central 1",
+    "Tópico central 2",
+    "Tópico central 3"
+  ],
+
   "frases_impacto": [
-    "Frase cortável 1 — funciona sozinha como corte ou legenda",
-    "Frase cortável 2",
-    "Frase cortável 3"
+    "Frase natural e impactante 1",
+    "Frase natural e impactante 2",
+    "Frase natural e impactante 3"
+  ],
+
+  "o_que_evitar": [
+    "Coisa que destruiria o conteúdo 1",
+    "Coisa que destruiria o conteúdo 2"
   ],
 
   "energia_ideal": {
-    "inicio": "provocativo|indignado|reflexivo|frio",
-    "meio": "confrontador|analítico|pesado|irônico",
-    "final": "estratégico|seco|desconfortável|silencioso"
+    "inicio": "provocativo|indignado|reflexivo|frio|estrategico",
+    "meio": "confrontador|analitico|pesado|ironico|mentor",
+    "final": "estrategico|seco|desconfortavel|silencioso|urgente"
   },
 
-  "cta": "Frase curta e polarizadora — não pergunta de marketing. Ex: 'Vai continuar assim ou vai mudar?'"
+  "tom_ideal": "provocativo|estrategico|analitico|mentor|confronto|sofisticado|indignado|calmo",
+
+  "risco_interpretacao_errada": "Como esse conteúdo pode ser mal interpretado",
+
+  "cta": "CTA curto e polarizador — não pergunta de marketing"
 }
 `,
-
-  // ───────────────────────────────────────────────────────────────────────────
-  // EXTRAÇÃO DE TENSÕES DE AULAS (modelo avançado - gpt-4o)
-  // ───────────────────────────────────────────────────────────────────────────
   extrairTensoesDeAulaAvancado: (conteudoAula, tituloAula = '') => `
 Você é um Diretor Editorial especializado em conteúdo de mercado imobiliário.
 
