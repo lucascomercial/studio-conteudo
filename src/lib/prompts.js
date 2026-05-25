@@ -107,6 +107,51 @@ O objetivo é criar uma GUIA DE ENTENDIMENTO PROFUNDO da mensagem.
 A guia precisa ajudar o criador a entender, sentir e improvisar naturalmente olhando pra câmera.
 NÃO seja superficial. Evite frases genéricas, motivacionais ou "conteúdo de coach".
 
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+⚠️ REGRA MAIS IMPORTANTE: PRESERVE A TENSÃO ORIGINAL
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+A tensão abaixo é ESPECÍFICA. NÃO a generalize.
+
+❌ PROIBIDO:
+- Pegar "dependência de tráfego pago" e transformar em "trabalhar muito não é bom"
+- Pegar "corretor que foge de objeção" e transformar em "comunicação é importante"
+- Pegar "proprietário que não baixa preço" e transformar em "precificação é difícil"
+
+✅ OBRIGATÓRIO:
+- Preservar o mecanismo EXATO do problema
+- Aprofundar a dor ESPECÍFICA dessa tensão
+- Encontrar a contradição psicológica REAL
+- Mostrar cenas que só fazem sentido NESSA tensão específica
+- O gancho, tópicos e CTA devem convergir para A MESMA tensão
+
+Se a tensão é "dependência de tráfego pago", tudo deve girar em torno disso:
+- dor: "quando o anúncio para, o corretor desaparece"
+- subtexto: "usa tráfego pago para esconder falta de posicionamento"
+- cta: "Seu mercado te conhece ou só conhece seus anúncios?"
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+⚠️ A TENSÃO ORIGINAL É SAGRADA
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+NÃO substitua por tema mais amplo.
+NÃO derive para: produtividade · motivação · esforço · disciplina genérica · burnout.
+Todos os campos devem ORBITAR a tensão original.
+Se qualquer campo começar a derivar: CORRIJA.
+
+Antes de gerar cada campo, responda internamente:
+→ Qual é o mecanismo INVISÍVEL desta tensão específica?
+→ Qual dependência ou contradição existe?
+→ Qual dor ESPECÍFICA essa situação gera?
+→ Qual comportamento concreto isso produz?
+→ Qual consequência social ou profissional aparece?
+
+EXEMPLOS DE DERIVA PROIBIDA:
+"foge de objeção" → ❌ "comunicação é importante" → ✅ "muda de assunto quando cliente questiona o preço"
+"proprietário não baixa preço" → ❌ "precificação é difícil" → ✅ "acredita que apego emocional tem valor de mercado"
+"dependência de tráfego pago" → ❌ "trabalhar muito não adianta" → ✅ "corretor virou refém da campanha — quando para, ele desaparece"
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 TENSÃO: \${typeof tensao === 'string' ? tensao : tensao.tensao}
 ANTAGONISTA: \${tensao.antagonista || 'não informado'}
 CENAS JÁ IDENTIFICADAS: \${(tensao.cenas_reais || tensao.cenas_sugeridas || []).join(' | ') || 'não informadas'}
@@ -150,7 +195,7 @@ Retorne APENAS JSON com todos os campos abaixo. Seja cruelmente específico e hu
     "Crença interna errada 2"
   ],
 
-  "o_que_realmente_doi": "Dor emocional REAL — não superficial. RUIM: perder vendas. BOM: trabalhar muito sem construir reputação",
+  "o_que_realmente_doi": "Dor emocional REAL desta tensão específica — não genérica. Ex para tráfego pago: perceber que depois de anos no mercado ninguém procura você espontaneamente",
 
   "o_que_esta_tentando_alertar": "Aviso escondido no conteúdo",
 
@@ -185,7 +230,7 @@ Retorne APENAS JSON com todos os campos abaixo. Seja cruelmente específico e hu
     ]
   },
 
-  "subtexto_escondido": "Mensagem invisível sendo passada",
+  "subtexto_escondido": "Mensagem invisível desta tensão específica. Ex para tráfego pago: o corretor usa tráfego pago para esconder falta de posicionamento",
 
   "visao_profunda": "O que essa pessoa entendeu que a maioria não entende",
 
