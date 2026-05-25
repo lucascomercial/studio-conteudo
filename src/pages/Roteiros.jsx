@@ -2,8 +2,6 @@
 import { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { supabase } from '../lib/supabase'
-import { callOpenAIJSONPremium } from '../lib/openai'
-import { prompts } from '../lib/prompts'
 
 const FORMATO_ICONES = {
   selfie_andando: '🚶 Selfie andando',
@@ -44,11 +42,10 @@ function GuiaModal({ guia, onClose, onDelete, onRecriar }) {
     if (!confirm(`Tem certeza que deseja excluir o guia "${guia.titulo || guia.tensao_texto}"?`)) return
     setDeletando(true)
     try {
-      // Determinar qual tabela (guias_conteudo ou guias_profundas) com base no tipo
       const tabela = guia.tipo === 'profundo' ? 'guias_profundas' : 'guias_conteudo'
       const { error } = await supabase.from(tabela).delete().eq('id', guia.id)
       if (error) throw error
-      onDelete(guia.id) // notifica o componente pai para remover da lista
+      onDelete(guia.id)
       onClose()
     } catch (err) {
       console.error('Erro ao deletar:', err)
@@ -279,67 +276,67 @@ export default function Roteiros() {
     carregarDados()
   }, [])
 
+  // ============================================================
+  // RECRIAR GUIA USANDO A EDGE FUNCTION (evita problemas de JSON)
+  // ============================================================
   const recriarGuia = async (guia) => {
     if (!confirm('Recriar esta guia com o novo prompt? A guia atual será substituída.')) return
+
+    // Verificar se temos tensao_id (necessário para a edge function)
+    if (!guia.tensao_id) {
+      alert('❌ Esta guia não possui tensao_id. Não é possível recriar automaticamente.')
+      return
+    }
+
     try {
-      // Busca a tensão original
-      const tensaoTexto = guia.tensao_texto || guia.titulo || ''
-      const tensaoObj = {
-        tensao: tensaoTexto,
-        antagonista: guia.antagonista || '',
-        cenas_reais: guia.cenas_reais || [],
-      }
+      const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/gerar-guia`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`
+        },
+        body: JSON.stringify({
+          tensao_id: guia.tensao_id,
+          tensao_texto: guia.tensao_texto || guia.titulo
+        })
+      })
 
-      const novaGuia = await callOpenAIJSONPremium(prompts.extrairGuiaEstrategica(tensaoObj))
+      const result = await response.json()
+      if (!response.ok) throw new Error(result.error || 'Erro na Edge Function')
 
-      const { error } = await supabase.from('guias_profundas').update({
-        gancho: novaGuia.sugestoes_de_gancho?.[0] || guia.gancho,
-        sugestoes_de_gancho: novaGuia.sugestoes_de_gancho,
-        tensao_principal: novaGuia.tensao_principal,
-        narrativa: novaGuia.narrativa,
-        nivel_confronto: novaGuia.nivel_confronto,
-        direcao: novaGuia.direcao,
-        linha_de_raciocinio: novaGuia.linha_de_raciocinio,
-        o_que_isso_realmente_quer_dizer: novaGuia.o_que_isso_realmente_quer_dizer,
-        ponto_central: novaGuia.ponto_central,
-        como_aparece_na_vida_real: novaGuia.como_aparece_na_vida_real,
-        o_que_essa_pessoa_acredita: novaGuia.o_que_essa_pessoa_acredita,
-        o_que_realmente_doi: novaGuia.o_que_realmente_doi,
-        o_que_esta_tentando_alertar: novaGuia.o_que_esta_tentando_alertar,
-        o_que_enxergou_que_outros_nao: novaGuia.o_que_enxergou_que_outros_nao,
-        verdadeiro_problema_escondido: novaGuia.verdadeiro_problema_escondido,
-        por_que_doi_tanto: novaGuia.por_que_doi_tanto,
-        comportamento_corrigido: novaGuia.comportamento_corrigido,
-        o_que_ja_viu_na_vida_real: novaGuia.o_que_ja_viu_na_vida_real,
-        o_que_cliente_pensa: novaGuia.o_que_cliente_pensa,
-        o_que_mercado_nao_perdoa: novaGuia.o_que_mercado_nao_perdoa,
-        contraste: novaGuia.contraste,
-        subtexto_escondido: novaGuia.subtexto_escondido,
-        visao_profunda: novaGuia.visao_profunda,
-        alma_do_conteudo: novaGuia.alma_do_conteudo,
-        sensacao_final: novaGuia.sensacao_final,
-        micro_cenas: novaGuia.micro_cenas,
-        o_que_nao_pode_faltar: novaGuia.o_que_nao_pode_faltar,
-        topicos: novaGuia.topicos,
-        frases_impacto: novaGuia.frases_impacto,
-        o_que_evitar: novaGuia.o_que_evitar,
-        energia_ideal: novaGuia.energia_ideal,
-        tom_ideal: novaGuia.tom_ideal,
-        risco_interpretacao_errada: novaGuia.risco_interpretacao_errada,
-        consequencia_invisivel: novaGuia.consequencia_invisivel,
-        erro_invisivel: novaGuia.erro_invisivel,
-        comportamentos_reais: novaGuia.comportamentos_reais,
-        cta: novaGuia.cta,
-        publico_alvo: novaGuia.publico === 'proprietario' ? 'proprietario' : 'corretor',
-        potencial_viral: typeof novaGuia.potencial_viral === 'number' ? novaGuia.potencial_viral : 5,
-      }).eq('id', guia.id)
+      // A Edge Function retorna { success: true, guia: { ...campos } }
+      const novaGuia = result.guia
 
-      if (error) throw error
+      // Atualizar o registro existente com os novos dados
+      const { error: updateError } = await supabase
+        .from('guias_profundas')
+        .update({
+          gancho: novaGuia.sugestoes_de_gancho?.[0] || guia.gancho,
+          sugestoes_de_gancho: novaGuia.sugestoes_de_gancho,
+          direcao: novaGuia.direcao,
+          comportamentos_reais: novaGuia.comportamentos_reais,
+          o_que_essa_pessoa_acredita: novaGuia.o_que_essa_pessoa_acredita,
+          erro_invisivel: novaGuia.erro_invisivel,
+          o_que_realmente_doi: novaGuia.o_que_realmente_doi,
+          o_que_mercado_pensa: novaGuia.o_que_mercado_pensa,
+          contraste: novaGuia.contraste,
+          alma_do_conteudo: novaGuia.alma_do_conteudo,
+          sensacao_final: novaGuia.sensacao_final,
+          topicos: novaGuia.topicos,
+          frases_fortes: novaGuia.frases_impacto,
+          energia_ideal: novaGuia.energia_ideal,
+          cta: novaGuia.cta,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', guia.id)
+
+      if (updateError) throw updateError
+
       alert('✅ Guia recriada com sucesso!')
       setModalGuia(null)
-      carregarDados()
+      carregarDados() // recarrega a lista
     } catch (err) {
-      console.error(err)
+      console.error('Erro ao recriar:', err)
       alert('Erro ao recriar: ' + err.message)
     }
   }
@@ -369,8 +366,9 @@ export default function Roteiros() {
       })),
       ...(guiasProfundos || []).map(p => ({
         id: p.id,
-        titulo: p.titulo || p.tensao_texto,
+        tensao_id: p.tensao_id,      // ← ADICIONADO
         tensao_texto: p.tensao_texto,
+        titulo: p.titulo || p.tensao_texto,
         gancho: p.gancho,
         linha_de_raciocinio: p.linha_de_raciocinio,
         topicos: p.topicos,
