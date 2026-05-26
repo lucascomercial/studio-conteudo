@@ -71,13 +71,14 @@ function GuiaModal({ guia, onClose, onDelete, onRecriar }) {
     if (gerandoRoteiro) return
     setGerandoRoteiro(true)
     try {
+      const tabela = guia.tipo === 'profundo' ? 'guias_profundas' : 'guias_conteudo'
       const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/gerar-roteiro`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
           'Content-Type': 'application/json'
         },
-        body: JSON.stringify({ guia_id: guia.id, estilo: estiloRoteiro })
+        body: JSON.stringify({ guia_id: guia.id, estilo: estiloRoteiro, tabela })
       })
       const result = await response.json()
       if (!response.ok) throw new Error(result.error || 'Erro na Edge Function')
@@ -324,42 +325,6 @@ function GuiaModal({ guia, onClose, onDelete, onRecriar }) {
                   <p className="text-sm text-white/80">{guia.o_que_mercado_nao_perdoa}</p>
                 </div>
               )}
-
-              {/* SEÇÃO DE ROTEIRO – agora dentro do isProfundo */}
-              <div className="border-t border-white/[0.06] pt-4 mt-2">
-                <div className="flex justify-between items-center mb-3">
-                  <div className="text-[10px] uppercase text-white/30">🎙️ MAPA DE FALA (teleprompter)</div>
-                  <div className="flex gap-2 items-center">
-                    <select
-                      value={estiloRoteiro}
-                      onChange={(e) => setEstiloRoteiro(e.target.value)}
-                      className="text-xs bg-white/10 border border-white/[0.06] rounded px-2 py-1"
-                      disabled={gerandoRoteiro}
-                    >
-                      <option value="desabafo">😤 Desabafo</option>
-                      <option value="confronto">⚡ Confronto</option>
-                      <option value="ironico">😏 Irônico</option>
-                      <option value="relato_seco">📄 Relato seco</option>
-                    </select>
-                    <button
-                      onClick={gerarRoteiro}
-                      disabled={gerandoRoteiro}
-                      className="text-xs bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-400 px-3 py-1 rounded disabled:opacity-40"
-                    >
-                      {gerandoRoteiro ? <SpinIcon size={3} /> : (roteiro ? 'Regenerar' : 'Gerar')}
-                    </button>
-                  </div>
-                </div>
-                {roteiro ? (
-                  <div className="bg-white/5 p-4 rounded-lg whitespace-pre-wrap text-sm text-white/80 font-mono leading-relaxed">
-                    {roteiro}
-                  </div>
-                ) : (
-                  <p className="text-xs text-white/30 text-center py-4">
-                    Clique em "Gerar" para criar um mapa de fala guiado (6-8 linhas curtas)
-                  </p>
-                )}
-              </div>
             </>
           )}
 
@@ -385,6 +350,42 @@ function GuiaModal({ guia, onClose, onDelete, onRecriar }) {
               <p className="text-emerald-400">"{guia.cta}"</p>
             </div>
           )}
+
+          {/* SEÇÃO DE ROTEIRO – agora fora do isProfundo */}
+          <div className="border-t border-white/[0.06] pt-4 mt-2">
+            <div className="flex justify-between items-center mb-3">
+              <div className="text-[10px] uppercase text-white/30">🎙️ MAPA DE FALA (teleprompter)</div>
+              <div className="flex gap-2 items-center">
+                <select
+                  value={estiloRoteiro}
+                  onChange={(e) => setEstiloRoteiro(e.target.value)}
+                  className="text-xs bg-white/10 border border-white/[0.06] rounded px-2 py-1"
+                  disabled={gerandoRoteiro}
+                >
+                  <option value="desabafo">😤 Desabafo</option>
+                  <option value="confronto">⚡ Confronto</option>
+                  <option value="ironico">😏 Irônico</option>
+                  <option value="relato_seco">📄 Relato seco</option>
+                </select>
+                <button
+                  onClick={gerarRoteiro}
+                  disabled={gerandoRoteiro}
+                  className="text-xs bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-400 px-3 py-1 rounded disabled:opacity-40"
+                >
+                  {gerandoRoteiro ? <SpinIcon size={3} /> : (roteiro ? 'Regenerar' : 'Gerar')}
+                </button>
+              </div>
+            </div>
+            {roteiro ? (
+              <div className="bg-white/5 p-4 rounded-lg whitespace-pre-wrap text-sm text-white/80 font-mono leading-relaxed">
+                {roteiro}
+              </div>
+            ) : (
+              <p className="text-xs text-white/30 text-center py-4">
+                Clique em "Gerar" para criar um mapa de fala guiado (6-8 linhas curtas)
+              </p>
+            )}
+          </div>
         </div>
 
         <div className="p-5 border-t border-white/[0.06] flex justify-between gap-3">
