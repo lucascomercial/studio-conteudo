@@ -47,7 +47,8 @@ function GuiaModal({ guia, onClose, onDelete, onRecriar }) {
   const [deletando, setDeletando] = useState(false)
   const [roteiro, setRoteiro] = useState(guia.roteiro_video || '')
   const [gerandoRoteiro, setGerandoRoteiro] = useState(false)
-  const [estiloRoteiro, setEstiloRoteiro] = useState('desabafo')
+  const [estiloRoteiro, setEstiloRoteiro] = useState('direto')
+  const [copiado, setCopiado] = useState(false)
   const isProfundo = !!guia.o_que_isso_realmente_quer_dizer || !!guia.subtexto_escondido
 
   const handleDelete = async () => {
@@ -71,24 +72,36 @@ function GuiaModal({ guia, onClose, onDelete, onRecriar }) {
     if (gerandoRoteiro) return
     setGerandoRoteiro(true)
     try {
-      const tabela = guia.tipo === 'profundo' ? 'guias_profundas' : 'guias_conteudo'
       const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/gerar-roteiro`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
           'Content-Type': 'application/json'
         },
-        body: JSON.stringify({ guia_id: guia.id, estilo: estiloRoteiro, tabela })
+        body: JSON.stringify({ guia_id: guia.id, estilo: estiloRoteiro })
       })
       const result = await response.json()
       if (!response.ok) throw new Error(result.error || 'Erro na Edge Function')
       setRoteiro(result.roteiro)
       guia.roteiro_video = result.roteiro
+      setCopiado(false)
     } catch (err) {
       console.error(err)
       alert('Erro ao gerar roteiro: ' + err.message)
     } finally {
       setGerandoRoteiro(false)
+    }
+  }
+
+  const copiarRoteiro = async () => {
+    if (!roteiro) return
+    try {
+      await navigator.clipboard.writeText(roteiro)
+      setCopiado(true)
+      setTimeout(() => setCopiado(false), 2000)
+    } catch (err) {
+      console.error('Erro ao copiar:', err)
+      alert('Não foi possível copiar. Selecione o texto manualmente.')
     }
   }
 
@@ -351,10 +364,10 @@ function GuiaModal({ guia, onClose, onDelete, onRecriar }) {
             </div>
           )}
 
-          {/* SEÇÃO DE ROTEIRO – agora fora do isProfundo */}
+          {/* SEÇÃO DE ROTEIRO PARA VÍDEO */}
           <div className="border-t border-white/[0.06] pt-4 mt-2">
             <div className="flex justify-between items-center mb-3">
-              <div className="text-[10px] uppercase text-white/30">🎙️ MAPA DE FALA (teleprompter)</div>
+              <div className="text-[10px] uppercase text-white/30">🎙️ ROTEIRO PARA VÍDEO</div>
               <div className="flex gap-2 items-center">
                 <select
                   value={estiloRoteiro}
@@ -362,10 +375,10 @@ function GuiaModal({ guia, onClose, onDelete, onRecriar }) {
                   className="text-xs bg-white/10 border border-white/[0.06] rounded px-2 py-1"
                   disabled={gerandoRoteiro}
                 >
-                  <option value="desabafo">😤 Desabafo</option>
+                  <option value="direto">🎙️ Direto</option>
                   <option value="confronto">⚡ Confronto</option>
-                  <option value="ironico">😏 Irônico</option>
-                  <option value="relato_seco">📄 Relato seco</option>
+                  <option value="calmo">🧘 Calmo</option>
+                  <option value="tecnico">📊 Técnico</option>
                 </select>
                 <button
                   onClick={gerarRoteiro}
@@ -374,15 +387,23 @@ function GuiaModal({ guia, onClose, onDelete, onRecriar }) {
                 >
                   {gerandoRoteiro ? <SpinIcon size={3} /> : (roteiro ? 'Regenerar' : 'Gerar')}
                 </button>
+                {roteiro && (
+                  <button
+                    onClick={copiarRoteiro}
+                    className="text-xs bg-blue-500/20 hover:bg-blue-500/30 text-blue-400 px-3 py-1 rounded transition"
+                  >
+                    {copiado ? '✓ Copiado!' : '📋 Copiar'}
+                  </button>
+                )}
               </div>
             </div>
             {roteiro ? (
-              <div className="bg-white/5 p-4 rounded-lg whitespace-pre-wrap text-sm text-white/80 font-mono leading-relaxed">
+              <div className="bg-white/5 p-4 rounded-lg whitespace-pre-wrap text-sm text-white/80 leading-relaxed">
                 {roteiro}
               </div>
             ) : (
               <p className="text-xs text-white/30 text-center py-4">
-                Clique em "Gerar" para criar um mapa de fala guiado (6-8 linhas curtas)
+                Clique em "Gerar" para criar o roteiro (90-120s de fala contínua).
               </p>
             )}
           </div>
