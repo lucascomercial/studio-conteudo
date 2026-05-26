@@ -47,6 +47,7 @@ function GuiaModal({ guia, onClose, onDelete, onRecriar }) {
   const [deletando, setDeletando] = useState(false)
   const [roteiro, setRoteiro] = useState(guia.roteiro_video || '')
   const [gerandoRoteiro, setGerandoRoteiro] = useState(false)
+  const [estiloRoteiro, setEstiloRoteiro] = useState('desabafo')
   const isProfundo = !!guia.o_que_isso_realmente_quer_dizer || !!guia.subtexto_escondido
 
   const handleDelete = async () => {
@@ -76,12 +77,11 @@ function GuiaModal({ guia, onClose, onDelete, onRecriar }) {
           'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
           'Content-Type': 'application/json'
         },
-        body: JSON.stringify({ guia_id: guia.id })
+        body: JSON.stringify({ guia_id: guia.id, estilo: estiloRoteiro })
       })
       const result = await response.json()
       if (!response.ok) throw new Error(result.error || 'Erro na Edge Function')
       setRoteiro(result.roteiro)
-      // Atualiza o objeto guia localmente (opcional, mas evita recarregar tudo)
       guia.roteiro_video = result.roteiro
     } catch (err) {
       console.error(err)
@@ -350,24 +350,39 @@ function GuiaModal({ guia, onClose, onDelete, onRecriar }) {
             </div>
           )}
 
-          {/* SEÇÃO DE ROTEIRO PARA VÍDEO */}
+          {/* SEÇÃO DE ROTEIRO PARA VÍDEO - MAPA DE FALA GUIADO */}
           <div className="border-t border-white/[0.06] pt-4 mt-2">
-            <div className="flex justify-between items-center mb-2">
-              <div className="text-[10px] uppercase text-white/30">🎙️ ROTEIRO PARA VÍDEO</div>
-              <button
-                onClick={gerarRoteiro}
-                disabled={gerandoRoteiro}
-                className="text-xs bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-400 px-2 py-1 rounded disabled:opacity-40"
-              >
-                {gerandoRoteiro ? <SpinIcon size={3} /> : (roteiro ? 'Regenerar roteiro' : 'Gerar roteiro')}
-              </button>
+            <div className="flex justify-between items-center mb-3">
+              <div className="text-[10px] uppercase text-white/30">🎙️ MAPA DE FALA (teleprompter)</div>
+              <div className="flex gap-2 items-center">
+                <select
+                  value={estiloRoteiro}
+                  onChange={(e) => setEstiloRoteiro(e.target.value)}
+                  className="text-xs bg-white/10 border border-white/[0.06] rounded px-2 py-1"
+                  disabled={gerandoRoteiro}
+                >
+                  <option value="desabafo">😤 Desabafo</option>
+                  <option value="confronto">⚡ Confronto</option>
+                  <option value="ironico">😏 Irônico</option>
+                  <option value="relato_seco">📄 Relato seco</option>
+                </select>
+                <button
+                  onClick={gerarRoteiro}
+                  disabled={gerandoRoteiro}
+                  className="text-xs bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-400 px-3 py-1 rounded disabled:opacity-40"
+                >
+                  {gerandoRoteiro ? <SpinIcon size={3} /> : (roteiro ? 'Regenerar' : 'Gerar')}
+                </button>
+              </div>
             </div>
             {roteiro ? (
-              <div className="bg-white/5 p-3 rounded-lg whitespace-pre-wrap text-sm text-white/80 italic">
+              <div className="bg-white/5 p-4 rounded-lg whitespace-pre-wrap text-sm text-white/80 font-mono leading-relaxed">
                 {roteiro}
               </div>
             ) : (
-              <p className="text-xs text-white/30">Clique em "Gerar roteiro" para criar um script natural e falável.</p>
+              <p className="text-xs text-white/30 text-center py-4">
+                Clique em "Gerar" para criar um mapa de fala guiado (6-8 linhas curtas)
+              </p>
             )}
           </div>
         </div>
@@ -386,7 +401,7 @@ function GuiaModal({ guia, onClose, onDelete, onRecriar }) {
                 onClick={() => onRecriar(guia)}
                 className="px-4 py-2 bg-violet-500/20 hover:bg-violet-500/30 rounded-lg text-sm text-violet-400 transition"
               >
-                🔄 Recriar com novo prompt
+                🔄 Recriar guia
               </button>
             )}
             <button onClick={onClose} className="px-4 py-2 bg-white/10 rounded-lg text-sm">Fechar</button>
@@ -583,7 +598,7 @@ export default function Roteiros() {
         verdade_dificil: p.verdade_dificil,
         sinais_reais_de_desconfianca: p.sinais_reais_de_desconfianca || [],
         como_isso_vira_conteudo_de_camera: p.como_isso_vira_conteudo_de_camera,
-        roteiro_video: p.roteiro_video || '', // 🔥 NOVO CAMPO
+        roteiro_video: p.roteiro_video || '',
         tipo: 'profundo',
         created_at: p.created_at || new Date(0).toISOString(),
       })),
