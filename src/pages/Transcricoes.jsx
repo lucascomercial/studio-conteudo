@@ -51,14 +51,12 @@ export default function Transcricoes() {
   const [texto, setTexto] = useState('')
   const [processando, setProcessando] = useState(false)
 
-  // Carrega transcrições e depois guias em batch
   useEffect(() => {
     carregarTranscricoes()
   }, [])
 
   async function carregarTranscricoes() {
     setLoading(true)
-    // 1. Carregar transcrições
     const { data, error } = await supabase
       .from('transcricoes')
       .select('*')
@@ -71,7 +69,6 @@ export default function Transcricoes() {
     }
     setTranscricoes(data || [])
 
-    // 2. Carregar TODOS os guias de uma só vez (otimizado)
     const { data: todosGuias, error: guiasError } = await supabase
       .from('guias_profundas')
       .select('*')
@@ -82,7 +79,6 @@ export default function Transcricoes() {
       return
     }
 
-    // Criar um mapa rápido: tensao_texto -> guia
     const guiaPorTexto = new Map()
     for (const guia of todosGuias || []) {
       if (guia.tensao_texto) {
@@ -90,7 +86,6 @@ export default function Transcricoes() {
       }
     }
 
-    // Montar o objeto guiasPorTensao para cada tensão
     const guiasMap = {}
     for (const trans of data || []) {
       if (trans.temas_brutos && Array.isArray(trans.temas_brutos)) {
@@ -144,10 +139,8 @@ export default function Transcricoes() {
     if (gerandoTensao[key]) return
     setGerandoTensao(prev => ({ ...prev, [key]: true }))
     try {
-      // Verificar se já existe guia (novamente, para evitar duplicidade)
       let tensaoId = tensao.id
       if (!tensaoId) {
-        // Inserir a tensão se ainda não existir
         const { data: tensaoInserida, error: tensaoError } = await supabase
           .from('tensoes')
           .insert({
@@ -168,7 +161,6 @@ export default function Transcricoes() {
         tensaoId = tensaoInserida[0].id
       }
 
-      // Chamar a Edge Function
       const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/gerar-guia`, {
         method: 'POST',
         headers: {
@@ -184,18 +176,10 @@ export default function Transcricoes() {
       const result = await response.json()
       if (!response.ok) throw new Error(result.error || 'Erro na Edge Function')
 
-      // Aguardar a finalização da inserção/atualização
-      await new Promise(resolve => setTimeout(resolve, 800))
+      // ✅ O guia completo já está no result.guia – usamos ele diretamente
+      const guiaSalvo = result.guia
 
-      // Buscar o guia recém‑criado
-      const { data: guiaSalvo, error: guiaError } = await supabase
-        .from('guias_profundas')
-        .select('*')
-        .eq('tensao_id', tensaoId)
-        .single()
-      if (guiaError) throw guiaError
-
-      // Atualizar o estado
+      // Atualiza o estado local imediatamente, sem precisar consultar o banco
       setGuiasPorTensao(prev => ({ ...prev, [key]: guiaSalvo }))
       setGuiasAbertos(prev => ({ ...prev, [key]: true }))
     } catch (err) {
@@ -218,7 +202,6 @@ export default function Transcricoes() {
       </div>
 
       <div className="flex-1 overflow-y-auto p-6">
-        {/* Nova transcrição */}
         <div className="bg-[#111113] border border-white/[0.06] rounded-xl p-4 mb-6">
           <h2 className="text-sm font-medium mb-3">➕ Nova Transcrição</h2>
           <div className="flex gap-2 mb-3">
