@@ -271,7 +271,7 @@ Responda de forma direta, sem enrolacao, sem elogios. Maximo 400 palavras no tot
           ) : (
             <div className="space-y-2">
               {Object.entries(dados.verdades)
-                .sort((a, b) => (b[1] as number) - (a[1] as number))
+                .sort((a, b) => b[1] - a[1])
                 .map(([tipo, count]) => (
                 <div key={tipo}>
                   <div className="flex justify-between text-xs text-white/50 mb-1">
@@ -316,7 +316,7 @@ Responda de forma direta, sem enrolacao, sem elogios. Maximo 400 palavras no tot
           ) : (
             <div className="space-y-2">
               {Object.entries(dados.emocoes)
-                .sort((a, b) => (b[1] as number) - (a[1] as number))
+                .sort((a, b) => b[1] - a[1])
                 .slice(0, 6)
                 .map(([emocao, count]) => (
                 <div key={emocao}>

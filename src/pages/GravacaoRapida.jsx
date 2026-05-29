@@ -159,7 +159,7 @@ export default function GravacaoRapida() {
       {/* Header — funil de 3 etapas */}
       <div className="sticky top-0 z-10 bg-[#0C0C0E]/95 backdrop-blur border-b border-white/[0.05] px-4 py-3">
         <div className="flex gap-2 max-w-lg mx-auto">
-          {(Object.keys(STATUS) as Array<keyof typeof STATUS>).map((s, i) => (
+          {Object.keys(STATUS).map((s, i) => (
             <button
               key={s}
               onClick={() => setFiltro(s)}
@@ -268,7 +268,7 @@ export default function GravacaoRapida() {
                   {['inicio', 'meio', 'final'].map(e => (
                     <div key={e} className="text-center p-2 bg-white/[0.03] rounded-lg border border-white/[0.05]">
                       <div className="text-[9px] uppercase text-white/20 mb-0.5">{e}</div>
-                      <div className="text-xs text-white/55">{(guia.energia_ideal as any)?.[e]}</div>
+                      <div className="text-xs text-white/55">{guia.energia_ideal?.[e]}</div>
                     </div>
                   ))}
                 </div>
@@ -279,7 +279,7 @@ export default function GravacaoRapida() {
                 <div>
                   <div className="text-[10px] uppercase tracking-widest text-white/20 mb-2">🎥 Cenas</div>
                   <ul className="space-y-1.5">
-                    {guia.micro_cenas.slice(0, 3).map((c: string, i: number) => (
+                    {guia.micro_cenas.slice(0, 3).map((c: string, i) => (
                       <li key={i} className="flex gap-2 text-xs text-white/45">
                         <span className="text-white/20 shrink-0">→</span>{c}
                       </li>
@@ -293,7 +293,7 @@ export default function GravacaoRapida() {
                 <div>
                   <div className="text-[10px] uppercase tracking-widest text-white/20 mb-2">💬 Frases</div>
                   <ul className="space-y-1.5">
-                    {guia.frases_fortes.slice(0, 3).map((f: string, i: number) => (
+                    {guia.frases_fortes.slice(0, 3).map((f: string, i) => (
                       <li key={i} className="text-xs text-white/50 border-l border-white/[0.08] pl-2.5 italic">"{f}"</li>
                     ))}
                   </ul>
@@ -504,7 +504,7 @@ export default function GravacaoRapida() {
 }
 
 function GravadosHoje() {
-  const [count, setCount] = useState<number | null>(null)
+  const [count, setCount] = useState(null)
 
   useEffect(() => {
     const hoje = new Date().toISOString().split('T')[0]
