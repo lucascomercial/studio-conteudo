@@ -279,7 +279,7 @@ export default function GravacaoRapida() {
                 <div>
                   <div className="text-[10px] uppercase tracking-widest text-white/20 mb-2">🎥 Cenas</div>
                   <ul className="space-y-1.5">
-                    {guia.micro_cenas.slice(0, 3).map((c: string, i) => (
+                    {guia.micro_cenas.slice(0, 3).map((c, i) => (
                       <li key={i} className="flex gap-2 text-xs text-white/45">
                         <span className="text-white/20 shrink-0">→</span>{c}
                       </li>
@@ -293,7 +293,7 @@ export default function GravacaoRapida() {
                 <div>
                   <div className="text-[10px] uppercase tracking-widest text-white/20 mb-2">💬 Frases</div>
                   <ul className="space-y-1.5">
-                    {guia.frases_fortes.slice(0, 3).map((f: string, i) => (
+                    {guia.frases_fortes.slice(0, 3).map((f, i) => (
                       <li key={i} className="text-xs text-white/50 border-l border-white/[0.08] pl-2.5 italic">"{f}"</li>
                     ))}
                   </ul>
