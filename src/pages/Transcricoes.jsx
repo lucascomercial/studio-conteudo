@@ -50,6 +50,8 @@ export default function Transcricoes() {
   const [tipo, setTipo] = useState('aula')
   const [texto, setTexto] = useState('')
   const [processando, setProcessando] = useState(false)
+  const [gerandoLote, setGerandoLote] = useState(false)
+  const [loteProgresso, setLoteProgresso] = useState({ atual: 0, total: 0 })
 
   useEffect(() => {
     carregarTranscricoes()
@@ -161,6 +163,7 @@ export default function Transcricoes() {
         tensaoId = tensaoInserida[0].id
       }
 
+      console.log('Chamando gerar-guia com tensao_id:', tensaoId)
       const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/gerar-guia`, {
         method: 'POST',
         headers: {
@@ -176,18 +179,62 @@ export default function Transcricoes() {
       const result = await response.json()
       if (!response.ok) throw new Error(result.error || 'Erro na Edge Function')
 
-      // ✅ O guia completo já está no result.guia – usamos ele diretamente
-      const guiaSalvo = result.guia
+      // Busca guia salvo com ID real do banco
+      const { data: guiaSalvo } = await supabase
+        .from('guias_profundas')
+        .select('*')
+        .eq('tensao_texto', tensao.tensao)
+        .maybeSingle()
 
-      // Atualiza o estado local imediatamente, sem precisar consultar o banco
-      setGuiasPorTensao(prev => ({ ...prev, [key]: guiaSalvo }))
+      const guiaFinal = guiaSalvo || result.guia
+      setGuiasPorTensao(prev => ({ ...prev, [key]: guiaFinal }))
       setGuiasAbertos(prev => ({ ...prev, [key]: true }))
+
+      // Gera roteiro automaticamente se tiver ID
+      if (guiaFinal?.id) {
+        try {
+          await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/gerar-roteiro`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`
+            },
+            body: JSON.stringify({ guia_id: guiaFinal.id })
+          })
+        } catch (roteiroErr) {
+          console.warn('Roteiro automático falhou (não crítico):', roteiroErr)
+        }
+      }
     } catch (err) {
       console.error(err)
       alert('Erro ao gerar guia: ' + err.message)
     } finally {
       setGerandoTensao(prev => ({ ...prev, [key]: false }))
     }
+  }
+
+  const gerarTodasGuias = async (transcricao) => {
+    const tensoesSemGuia = (transcricao.temas_brutos || []).filter((tensao, idx) => {
+      const key = `${transcricao.id}_${idx}`
+      return !guiasPorTensao[key]
+    })
+    if (tensoesSemGuia.length === 0) return
+
+    setGerandoLote(true)
+    setLoteProgresso({ atual: 0, total: tensoesSemGuia.length })
+
+    for (let idx = 0; idx < transcricao.temas_brutos.length; idx++) {
+      const tensao = transcricao.temas_brutos[idx]
+      const key = `${transcricao.id}_${idx}`
+      if (guiasPorTensao[key]) continue
+      try {
+        await gerarGuiaParaTensao(transcricao, tensao, idx)
+        setLoteProgresso(prev => ({ ...prev, atual: prev.atual + 1 }))
+      } catch (e) {
+        console.error('Erro no lote:', e)
+      }
+    }
+    setGerandoLote(false)
   }
 
   const toggleGuia = (key) => {
@@ -260,9 +307,16 @@ export default function Transcricoes() {
                     {trans.resumo && <p className="text-xs text-white/40 mt-1 line-clamp-2">{trans.resumo}</p>}
                     <div className="flex items-center gap-3 mt-2">
                       <span className="text-xs text-white/30">📊 {trans.roteiros_gerados || 0} roteiros</span>
-                      {trans.temas_brutos?.length > 0 && (
-                        <span className="text-xs text-white/30">⚡ {trans.temas_brutos.length} tensões</span>
-                      )}
+                      {trans.temas_brutos?.length > 0 && (() => {
+                        const total = trans.temas_brutos.length
+                        const geradas = trans.temas_brutos.filter((_, idx) => guiasPorTensao[`${trans.id}_${idx}`]).length
+                        const todas = geradas === total
+                        return (
+                          <span className={`text-xs flex items-center gap-1 ${todas ? 'text-emerald-400' : 'text-white/30'}`}>
+                            {todas ? '🟢' : '⚡'} {geradas}/{total} guias
+                          </span>
+                        )
+                      })()}
                     </div>
                   </div>
                   <span className="text-white/30 text-lg">{expandedId === trans.id ? '−' : '+'}</span>
@@ -286,7 +340,20 @@ export default function Transcricoes() {
 
                         {trans.temas_brutos?.length > 0 && (
                           <div>
-                            <div className="text-[10px] uppercase text-white/30 mb-2">⚡ Tensões extraídas</div>
+                            <div className="flex items-center justify-between mb-2">
+                              <div className="text-[10px] uppercase text-white/30">⚡ Tensões extraídas</div>
+                              {trans.temas_brutos?.some((_, idx) => !guiasPorTensao[`${trans.id}_${idx}`]) && (
+                                <button
+                                  onClick={() => gerarTodasGuias(trans)}
+                                  disabled={gerandoLote}
+                                  className="text-[10px] px-2.5 py-1 bg-violet-500/20 hover:bg-violet-500/30 text-violet-300 rounded-lg transition disabled:opacity-50 flex items-center gap-1"
+                                >
+                                  {gerandoLote
+                                    ? `⏳ ${loteProgresso.atual}/${loteProgresso.total}`
+                                    : '⚡ Gerar todas'}
+                                </button>
+                              )}
+                            </div>
                             <div className="space-y-3">
                               {trans.temas_brutos.map((tensao, idx) => {
                                 const key = `${trans.id}_${idx}`
