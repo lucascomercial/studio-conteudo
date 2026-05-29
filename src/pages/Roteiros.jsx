@@ -43,7 +43,7 @@ function Badge({ label, className }) {
   return <span className={`inline-flex items-center px-2 py-0.5 rounded text-[10px] font-medium ${className}`}>{label}</span>
 }
 
-function GuiaModal({ guia, onClose, onDelete, onRecriar }) {
+function GuiaModal({ guia, onClose, onDelete, onRecriar, onStatusChange }) {
   const [deletando, setDeletando] = useState(false)
   const [roteiro, setRoteiro] = useState(guia.roteiro_video || '')
   const [gerandoRoteiro, setGerandoRoteiro] = useState(false)
@@ -551,6 +551,14 @@ export default function Roteiros() {
     }
   }
 
+  const atualizarStatus = async (guiaId, novoStatus, tipo) => {
+    const tabela = tipo === 'profundo' ? 'guias_profundas' : 'guias_conteudo'
+    const { error } = await supabase.from(tabela).update({ status: novoStatus }).eq('id', guiaId)
+    if (error) { console.error(error); return }
+    setGuias(prev => prev.map(g => g.id === guiaId ? { ...g, status: novoStatus } : g))
+    if (modalGuia?.id === guiaId) setModalGuia(prev => ({ ...prev, status: novoStatus }))
+  }
+
   async function carregarDados() {
     setLoading(true)
 
@@ -708,8 +716,9 @@ export default function Roteiros() {
               <option value="investidor">📈 Investidor</option>
             </select>
             <select value={filtroStatus} onChange={e => setFiltroStatus(e.target.value)} className="bg-white/[0.04] border border-white/[0.06] rounded-lg px-2.5 py-1.5 text-xs text-white/50">
-              <option value="">📝 Todos status</option>
+              <option value="">Todos status</option>
               <option value="pendente">📝 Pendente</option>
+              <option value="separado">🔵 Separado</option>
               <option value="gravado">🎬 Gravado</option>
               <option value="publicado">📱 Publicado</option>
             </select>
@@ -746,10 +755,31 @@ export default function Roteiros() {
                     </div>
                     <h3 className="text-sm font-medium text-[#E8E6E1] line-clamp-2">{guia.titulo || guia.tensao_texto}</h3>
                     {guia.gancho && <p className="text-xs text-white/40 mt-1 line-clamp-2">"{guia.gancho}"</p>}
-                    <div className="flex items-center justify-between mt-3 pt-2 border-t border-white/[0.06]">
-                      <span className={`text-[10px] px-2 py-0.5 rounded-full ${guia.status === 'gravado' ? 'bg-amber-500/20 text-amber-400' : guia.status === 'publicado' ? 'bg-emerald-500/20 text-emerald-400' : 'bg-white/10 text-white/30'}`}>
-                        {guia.status === 'gravado' ? '🎬 Gravado' : guia.status === 'publicado' ? '📱 Publicado' : '📝 Pendente'}
+                    <div className="flex items-center justify-between mt-3 pt-2 border-t border-white/[0.06]" onClick={e => e.stopPropagation()}>
+                      <span className={`text-[10px] px-2 py-0.5 rounded-full ${
+                        guia.status === 'separado'  ? 'bg-blue-500/20 text-blue-400' :
+                        guia.status === 'gravado'   ? 'bg-amber-500/20 text-amber-400' :
+                        guia.status === 'publicado' ? 'bg-emerald-500/20 text-emerald-400' :
+                        'bg-white/10 text-white/30'
+                      }`}>
+                        {guia.status === 'separado' ? '🔵 Separado' : guia.status === 'gravado' ? '🎬 Gravado' : guia.status === 'publicado' ? '📱 Publicado' : '📝 Pendente'}
                       </span>
+                      {guia.status === 'pendente' && (
+                        <button
+                          onClick={() => atualizarStatus(guia.id, 'separado', guia.tipo)}
+                          className="text-[10px] px-2.5 py-1 bg-blue-500/20 hover:bg-blue-500/30 text-blue-400 rounded-lg transition font-medium"
+                        >
+                          + Separar
+                        </button>
+                      )}
+                      {guia.status === 'separado' && (
+                        <button
+                          onClick={() => atualizarStatus(guia.id, 'pendente', guia.tipo)}
+                          className="text-[10px] px-2.5 py-1 bg-white/[0.06] hover:bg-white/10 text-white/30 rounded-lg transition"
+                        >
+                          ↩ Desfazer
+                        </button>
+                      )}
                     </div>
                   </div>
                 ))}
@@ -793,6 +823,7 @@ export default function Roteiros() {
             onClose={() => setModalGuia(null)}
             onDelete={handleDeleteGuide}
             onRecriar={recriarGuia}
+            onStatusChange={atualizarStatus}
           />
         )}
       </AnimatePresence>
