@@ -191,7 +191,7 @@ Responda de forma direta, sem enrolacao, sem elogios. Maximo 400 palavras no tot
   if (pctCorretor < 60) alertas.push('Poucos conteúdos para corretores — DNA pede 75%')
 
   const aberturas = dados.aberturas
-  const totalAberturas = Object.values(aberturas).reduce((a, b) => a + (b as number), 0)
+  const totalAberturas = Object.values(aberturas).reduce((a, b) => a + b, 0)
   if (totalAberturas > 5) {
     const pctConst = (aberturas['constatação'] || 0) / totalAberturas * 100
     if (pctConst > 60) alertas.push('Muitas aberturas com "constatação" — varie com afirmação e pergunta')
@@ -200,7 +200,7 @@ Responda de forma direta, sem enrolacao, sem elogios. Maximo 400 palavras no tot
   }
 
   const verdades = dados.verdades
-  const totalVerdades = Object.values(verdades).reduce((a, b) => a + (b as number), 0)
+  const totalVerdades = Object.values(verdades).reduce((a, b) => a + b, 0)
   if (totalVerdades > 5) {
     const pctFI = (verdades['fracasso_invisivel'] || 0) / totalVerdades * 100
     if (pctFI > 55) alertas.push('Muitos "fracasso invisível" — explore vergonha_silenciosa e medo_social')
@@ -277,7 +277,7 @@ Responda de forma direta, sem enrolacao, sem elogios. Maximo 400 palavras no tot
                   <div className="flex justify-between text-xs text-white/50 mb-1">
                     <span>{tipo.replace(/_/g, ' ')}</span>
                   </div>
-                  <BarraProgresso valor={count as number} max={maxVerdade} cor="bg-rose-500" />
+                  <BarraProgresso valor={count} max={maxVerdade} cor="bg-rose-500" />
                 </div>
               ))}
             </div>
@@ -321,7 +321,7 @@ Responda de forma direta, sem enrolacao, sem elogios. Maximo 400 palavras no tot
                 .map(([emocao, count]) => (
                 <div key={emocao}>
                   <div className="text-xs text-white/50 mb-1">{emocao}</div>
-                  <BarraProgresso valor={count as number} max={maxEmocao} cor="bg-pink-500" />
+                  <BarraProgresso valor={count} max={maxEmocao} cor="bg-pink-500" />
                 </div>
               ))}
             </div>
