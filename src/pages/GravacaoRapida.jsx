@@ -46,7 +46,8 @@ export default function GravacaoRapida() {
       .from('guias_profundas')
       .select(`id, titulo, tensao_texto, gancho, sugestoes_de_gancho,
                alma_do_conteudo, como_isso_vira_conteudo_de_camera,
-               micro_cenas, frases_fortes, cta, roteiro_video,
+               micro_cenas, frases_fortes, cta, roteiro_video, roteiro_cortes,
+               tira_teleprompter, roteiro_aprovado,
                energia_ideal, publico_alvo, emocao, potencial_viral,
                status, tipo_gancho, tipo_verdade, updated_at`)
       .eq('status', status)
