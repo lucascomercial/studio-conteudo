@@ -28,6 +28,7 @@ export default function GravacaoRapida() {
   const [feedback, setFeedback]     = useState(null)
   const [verRoteiro, setVerRoteiro] = useState(false)
   const [formatoRoteiro, setFormatoRoteiro] = useState('corrido') // 'corrido' | 'cortes'
+  const [tomRoteiro, setTomRoteiro] = useState('confronto') // 'confronto' | 'ajuda'
   const [verTira, setVerTira] = useState(false)
   const [gerandoTira, setGerandoTira] = useState(false)
   const [gerandoRoteiro, setGerandoRoteiro] = useState(false)
@@ -47,7 +48,7 @@ export default function GravacaoRapida() {
       .select(`id, titulo, tensao_texto, gancho, sugestoes_de_gancho,
                alma_do_conteudo, como_isso_vira_conteudo_de_camera,
                micro_cenas, frases_fortes, cta, roteiro_video, roteiro_cortes,
-               tira_teleprompter, roteiro_aprovado,
+               tira_teleprompter, roteiro_aprovado, tom_roteiro,
                energia_ideal, publico_alvo, emocao, potencial_viral,
                status, tipo_gancho, tipo_verdade, updated_at`)
       .eq('status', status)
@@ -91,7 +92,7 @@ export default function GravacaoRapida() {
       const resp = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/gerar-roteiro`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}` },
-        body: JSON.stringify({ guia_id: guia.id, estilo })
+        body: JSON.stringify({ guia_id: guia.id, estilo, tom: tomRoteiro })
       })
       const data = await resp.json()
       if (data.roteiro) {
@@ -406,6 +407,30 @@ export default function GravacaoRapida() {
                       </motion.div>
                     )}
                   </AnimatePresence>
+                </div>
+              )}
+
+              {/* Seletor de tom */}
+              {filtro === 'separado' && (
+                <div className="flex gap-1.5">
+                  <div className="text-[10px] uppercase text-white/20 self-center mr-1">Tom:</div>
+                  {[
+                    { id: 'confronto', label: '⚡ Confronto', desc: 'provoca, expõe, incomoda' },
+                    { id: 'ajuda',     label: '🤝 Ajuda',     desc: 'orienta, mostra saída' },
+                  ].map(({ id, label, desc }) => (
+                    <button key={id}
+                      onClick={() => setTomRoteiro(id)}
+                      className={`flex-1 py-2 rounded-lg text-xs transition border ${
+                        tomRoteiro === id
+                          ? id === 'confronto'
+                            ? 'bg-rose-500/20 border-rose-500/30 text-rose-300'
+                            : 'bg-teal-500/20 border-teal-500/30 text-teal-300'
+                          : 'bg-white/[0.03] border-white/[0.06] text-white/25 hover:bg-white/[0.07]'
+                      }`}
+                    >
+                      {label}
+                    </button>
+                  ))}
                 </div>
               )}
 
