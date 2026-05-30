@@ -27,6 +27,7 @@ export default function GravacaoRapida() {
   const [salvando, setSalvando]     = useState(false)
   const [feedback, setFeedback]     = useState(null)
   const [verRoteiro, setVerRoteiro] = useState(false)
+  const [formatoRoteiro, setFormatoRoteiro] = useState('corrido') // 'corrido' | 'cortes'
   const [verTira, setVerTira] = useState(false)
   const [gerandoTira, setGerandoTira] = useState(false)
   const [gerandoRoteiro, setGerandoRoteiro] = useState(false)
@@ -82,19 +83,21 @@ export default function GravacaoRapida() {
     finally { setGerandoTira(false) }
   }
 
-  const gerarNovoRoteiro = async () => {
+  const gerarNovoRoteiro = async (estilo = formatoRoteiro) => {
     if (!guia?.id) return
     setGerandoRoteiro(true)
     try {
       const resp = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/gerar-roteiro`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}` },
-        body: JSON.stringify({ guia_id: guia.id })
+        body: JSON.stringify({ guia_id: guia.id, estilo })
       })
       const data = await resp.json()
       if (data.roteiro) {
-        setGuias(prev => prev.map(g => g.id === guia.id ? { ...g, roteiro_video: data.roteiro } : g))
+        const campo = estilo === 'cortes' ? 'roteiro_cortes' : 'roteiro_video'
+        setGuias(prev => prev.map(g => g.id === guia.id ? { ...g, [campo]: data.roteiro } : g))
         setVerRoteiro(true)
+        setFormatoRoteiro(estilo)
       }
     } catch (e) { console.error(e) }
     finally { setGerandoRoteiro(false) }
@@ -308,23 +311,72 @@ export default function GravacaoRapida() {
                 </div>
               )}
 
-              {/* Roteiro colapsável */}
-              {guia.roteiro_video && (
+              {/* Roteiro — corrido ou cortes */}
+              {(guia.roteiro_video || guia.roteiro_cortes) && (
                 <div>
-                  <button onClick={() => setVerRoteiro(v => !v)}
-                    className="w-full flex items-center justify-between px-3 py-2.5 bg-white/[0.03] border border-white/[0.06] rounded-xl hover:bg-white/[0.06] transition">
-                    <span className="text-xs text-white/40">🎙️ Roteiro completo</span>
-                    <span className="text-[10px] text-white/25">{verRoteiro ? '▲ Ocultar' : '▼ Ver'}</span>
-                  </button>
+                  {/* Tabs de formato */}
+                  <div className="flex gap-1.5 mb-2">
+                    {[
+                      { id: 'corrido', label: '🎙️ Corrido', tem: !!guia.roteiro_video },
+                      { id: 'cortes',  label: '✂️ Cortes',  tem: !!guia.roteiro_cortes },
+                    ].map(({ id, label, tem }) => (
+                      <button key={id}
+                        onClick={() => { setFormatoRoteiro(id); setVerRoteiro(true) }}
+                        className={`flex-1 py-2 rounded-lg text-xs transition border flex items-center justify-center gap-1.5 ${
+                          formatoRoteiro === id && verRoteiro
+                            ? 'bg-white/[0.08] border-white/[0.12] text-white/70'
+                            : 'bg-white/[0.03] border-white/[0.06] text-white/30 hover:bg-white/[0.06]'
+                        }`}
+                      >
+                        {label}
+                        {!tem && <span className="text-[9px] text-white/20">gerar</span>}
+                      </button>
+                    ))}
+                    <button onClick={() => setVerRoteiro(v => !v)}
+                      className="px-3 py-2 bg-white/[0.03] border border-white/[0.06] rounded-lg text-[10px] text-white/25 hover:bg-white/[0.06] transition">
+                      {verRoteiro ? '▲' : '▼'}
+                    </button>
+                  </div>
+
                   <AnimatePresence>
                     {verRoteiro && (
                       <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} className="overflow-hidden">
-                        <div className="mt-2 p-4 bg-white/[0.02] border border-white/[0.05] rounded-xl">
-                          <p className="text-sm text-white/65 leading-relaxed whitespace-pre-wrap">{guia.roteiro_video}</p>
-                        </div>
+                        {formatoRoteiro === 'corrido' && guia.roteiro_video ? (
+                          <div className="p-4 bg-white/[0.02] border border-white/[0.05] rounded-xl">
+                            <p className="text-sm text-white/65 leading-relaxed whitespace-pre-wrap">{guia.roteiro_video}</p>
+                          </div>
+                        ) : formatoRoteiro === 'cortes' && guia.roteiro_cortes ? (
+                          <div className="p-4 bg-white/[0.02] border border-white/[0.05] rounded-xl">
+                            <pre className="text-sm text-white/65 leading-relaxed whitespace-pre-wrap font-sans">{guia.roteiro_cortes}</pre>
+                          </div>
+                        ) : (
+                          <div className="p-4 bg-white/[0.02] border border-white/[0.05] rounded-xl text-center">
+                            <p className="text-xs text-white/30 mb-3">
+                              {formatoRoteiro === 'cortes' ? 'Roteiro em cortes não gerado ainda' : 'Roteiro corrido não gerado ainda'}
+                            </p>
+                            <button onClick={() => gerarNovoRoteiro(formatoRoteiro)} disabled={gerandoRoteiro}
+                              className="px-4 py-2 bg-violet-500/20 border border-violet-500/30 text-violet-300 rounded-lg text-xs hover:bg-violet-500/30 transition disabled:opacity-40">
+                              {gerandoRoteiro ? <SpinIcon /> : `⚡ Gerar roteiro ${formatoRoteiro === 'cortes' ? 'em cortes' : 'corrido'}`}
+                            </button>
+                          </div>
+                        )}
                       </motion.div>
                     )}
                   </AnimatePresence>
+                </div>
+              )}
+
+              {/* Botão para gerar roteiro se não tiver nenhum */}
+              {!guia.roteiro_video && !guia.roteiro_cortes && (
+                <div className="flex gap-2">
+                  <button onClick={() => gerarNovoRoteiro('corrido')} disabled={gerandoRoteiro}
+                    className="flex-1 py-2 bg-white/[0.04] border border-white/[0.07] text-white/30 rounded-lg text-xs hover:bg-white/[0.08] transition disabled:opacity-40">
+                    {gerandoRoteiro ? <SpinIcon /> : '🎙️ Gerar corrido'}
+                  </button>
+                  <button onClick={() => gerarNovoRoteiro('cortes')} disabled={gerandoRoteiro}
+                    className="flex-1 py-2 bg-white/[0.04] border border-white/[0.07] text-white/30 rounded-lg text-xs hover:bg-white/[0.08] transition disabled:opacity-40">
+                    {gerandoRoteiro ? <SpinIcon /> : '✂️ Gerar em cortes'}
+                  </button>
                 </div>
               )}
 
@@ -367,9 +419,9 @@ export default function GravacaoRapida() {
                     }`}>
                     {guia.roteiro_aprovado ? '✓ Roteiro aprovado' : '👍 Aprovar roteiro'}
                   </button>
-                  <button onClick={gerarNovoRoteiro} disabled={gerandoRoteiro}
+                  <button onClick={() => gerarNovoRoteiro(formatoRoteiro)} disabled={gerandoRoteiro}
                     className="flex-1 py-2 rounded-lg text-xs bg-white/[0.04] border border-white/[0.07] text-white/30 hover:bg-white/[0.08] transition">
-                    {gerandoRoteiro ? <SpinIcon /> : '🔄 Gerar outro'}
+                    {gerandoRoteiro ? <SpinIcon /> : `🔄 Gerar outro ${formatoRoteiro === 'cortes' ? '(cortes)' : '(corrido)'}`}
                   </button>
                 </div>
               )}

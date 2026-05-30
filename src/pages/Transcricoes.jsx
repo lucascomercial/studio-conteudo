@@ -190,20 +190,22 @@ export default function Transcricoes() {
       setGuiasPorTensao(prev => ({ ...prev, [key]: guiaFinal }))
       setGuiasAbertos(prev => ({ ...prev, [key]: true }))
 
-      // Gera roteiro automaticamente se tiver ID
+      // Gera corrido + cortes em paralelo automaticamente
       if (guiaFinal?.id) {
-        try {
-          await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/gerar-roteiro`, {
+        const gerarRoteiro = (estilo) => fetch(
+          `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/gerar-roteiro`,
+          {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
               'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`
             },
-            body: JSON.stringify({ guia_id: guiaFinal.id })
-          })
-        } catch (roteiroErr) {
-          console.warn('Roteiro automático falhou (não crítico):', roteiroErr)
-        }
+            body: JSON.stringify({ guia_id: guiaFinal.id, estilo })
+          }
+        ).catch(e => console.warn(`Roteiro ${estilo} falhou:`, e))
+
+        Promise.all([gerarRoteiro('corrido'), gerarRoteiro('cortes')])
+          .catch(e => console.warn('Roteiros:', e))
       }
     } catch (err) {
       console.error(err)
