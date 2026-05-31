@@ -173,7 +173,8 @@ export default function Transcricoes() {
         },
         body: JSON.stringify({
           tensao_id: tensaoId,
-          tensao_texto: tensao.tensao
+          tensao_texto: tensao.tensao,
+          tom: tomPorTensao[key] || tensao.tom_sugerido || 'confronto'
         })
       })
 
