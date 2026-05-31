@@ -131,7 +131,6 @@ function Coluna({ titulo, date, label, isHoje, guias, onDragOver, onDrop, onDrag
         )}
       </div>
     </div>
-    </div>
   )
 }
 
