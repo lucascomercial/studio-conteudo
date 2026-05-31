@@ -45,9 +45,6 @@ export default function Transcricoes() {
   const [guiasPorTensao, setGuiasPorTensao] = useState({})
   const [gerandoTensao, setGerandoTensao] = useState({})
   const [guiasAbertos, setGuiasAbertos] = useState({})
-  const [tomPorTensao, setTomPorTensao] = useState({})
-  const [publicoPorTrans, setPublicoPorTrans] = useState({})
-  const [tomPorTrans, setTomPorTrans] = useState({})
 
   const [titulo, setTitulo] = useState('')
   const [tipo, setTipo] = useState('aula')
@@ -174,6 +171,7 @@ export default function Transcricoes() {
         body: JSON.stringify({
           tensao_id: tensaoId,
           tensao_texto: tensao.tensao,
+          publico: tomPorTensao[`pub_${key}`] || tensao.publico_sugerido || 'corretor',
           tom: tomPorTensao[key] || tensao.tom_sugerido || 'confronto'
         })
       })
@@ -190,44 +188,6 @@ export default function Transcricoes() {
     } catch (err) {
       console.error(err)
       alert('Erro ao gerar guia: ' + err.message)
-    } finally {
-      setGerandoTensao(prev => ({ ...prev, [key]: false }))
-    }
-  }
-
-  const extrairTensoes = async (transcricaoId) => {
-    const key = `tensoes_${transcricaoId}`
-    setGerandoTensao(prev => ({ ...prev, [key]: true }))
-    try {
-      const resp = await fetch(
-        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/extrair-tensoes`,
-        {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`
-          },
-          body: JSON.stringify({
-            transcricao_id: transcricaoId,
-            publico: publicoPorTrans[transcricaoId] || 'corretor',
-            tom: tomPorTrans[transcricaoId] || 'confronto'
-          })
-        }
-      )
-      const data = await resp.json()
-      if (!resp.ok) throw new Error(data.error || 'Erro ao extrair')
-      // Recarrega a transcrição para pegar os temas_brutos atualizados
-      const { data: trans } = await supabase
-        .from('transcricoes')
-        .select('*')
-        .eq('id', transcricaoId)
-        .single()
-      if (trans) {
-        setTranscricoes(prev => prev.map(t => t.id === transcricaoId ? trans : t))
-      }
-    } catch (e) {
-      console.error(e)
-      alert('Erro ao extrair tensões: ' + e.message)
     } finally {
       setGerandoTensao(prev => ({ ...prev, [key]: false }))
     }
@@ -327,63 +287,6 @@ export default function Transcricoes() {
                           </div>
                         )}
 
-                        {/* Extrair tensões — com público e tom */}
-                        {(!trans.temas_brutos || trans.temas_brutos.length === 0) && (
-                          <div className="p-3 bg-white/[0.02] border border-white/[0.05] rounded-lg space-y-2">
-                            <span className="text-[10px] uppercase text-white/25">
-                              {trans.status === 'processado' ? '⚠️ Sem tensões' : '⏳ Tensões não extraídas'}
-                            </span>
-
-                            {/* Público */}
-                            <div className="flex gap-1.5">
-                              <span className="text-[10px] text-white/30 self-center">Público:</span>
-                              {[
-                                { id: 'corretor',     label: '👔 Corretor'     },
-                                { id: 'proprietario', label: '🏠 Proprietário' },
-                              ].map(({ id, label }) => (
-                                <button key={id}
-                                  onClick={() => setPublicoPorTrans(prev => ({ ...prev, [trans.id]: id }))}
-                                  className={`px-2.5 py-1 rounded-lg text-[10px] transition border ${
-                                    (publicoPorTrans[trans.id] || 'corretor') === id
-                                      ? 'bg-violet-500/20 border-violet-500/30 text-violet-300'
-                                      : 'bg-white/[0.03] border-white/[0.06] text-white/25 hover:bg-white/[0.07]'
-                                  }`}>
-                                  {label}
-                                </button>
-                              ))}
-                            </div>
-
-                            {/* Tom */}
-                            <div className="flex gap-1.5">
-                              <span className="text-[10px] text-white/30 self-center">Tom:</span>
-                              {[
-                                { id: 'confronto', label: '⚡ Confronto' },
-                                { id: 'ajuda',     label: '🤝 Ajuda'     },
-                              ].map(({ id, label }) => (
-                                <button key={id}
-                                  onClick={() => setTomPorTrans(prev => ({ ...prev, [trans.id]: id }))}
-                                  className={`px-2.5 py-1 rounded-lg text-[10px] transition border ${
-                                    (tomPorTrans[trans.id] || 'confronto') === id
-                                      ? id === 'confronto'
-                                        ? 'bg-rose-500/20 border-rose-500/30 text-rose-300'
-                                        : 'bg-teal-500/20 border-teal-500/30 text-teal-300'
-                                      : 'bg-white/[0.03] border-white/[0.06] text-white/25 hover:bg-white/[0.07]'
-                                  }`}>
-                                  {label}
-                                </button>
-                              ))}
-                            </div>
-
-                            <button
-                              onClick={() => extrairTensoes(trans.id)}
-                              disabled={gerandoTensao[`tensoes_${trans.id}`]}
-                              className="w-full text-xs px-3 py-2 bg-violet-500/20 hover:bg-violet-500/30 text-violet-300 rounded-lg transition disabled:opacity-40 flex items-center justify-center gap-1.5"
-                            >
-                              {gerandoTensao[`tensoes_${trans.id}`] ? <><SpinIcon /> Extraindo...</> : '⚡ Extrair tensões'}
-                            </button>
-                          </div>
-                        )}
-
                         {trans.temas_brutos?.length > 0 && (
                           <div>
                             <div className="text-[10px] uppercase text-white/30 mb-2">⚡ Tensões extraídas</div>
@@ -417,13 +320,47 @@ export default function Transcricoes() {
                                         )}
                                       </div>
                                       {!guia ? (
-                                        <button
-                                          onClick={() => gerarGuiaParaTensao(trans, tensao, idx)}
-                                          disabled={gerando}
-                                          className="ml-2 text-xs bg-violet-500/20 hover:bg-violet-500/30 text-violet-300 px-2 py-1 rounded whitespace-nowrap"
-                                        >
-                                          {gerando ? <SpinIcon /> : '🎬 Gerar guia profundo'}
-                                        </button>
+                                        <div className="ml-2 flex flex-col gap-1.5 items-end shrink-0">
+                                          {/* Público */}
+                                          <div className="flex gap-1">
+                                            {[
+                                              { id: 'corretor',     label: '👔' },
+                                              { id: 'proprietario', label: '🏠' },
+                                            ].map(({ id, label }) => (
+                                              <button key={id} title={id}
+                                                onClick={() => setTomPorTensao(prev => ({ ...prev, [`pub_${key}`]: id }))}
+                                                className={`text-[10px] px-2 py-0.5 rounded transition border ${
+                                                  (tomPorTensao[`pub_${key}`] || tensao.publico_sugerido || 'corretor') === id
+                                                    ? 'bg-violet-500/25 border-violet-500/40 text-violet-300'
+                                                    : 'bg-white/[0.03] border-white/[0.06] text-white/25 hover:bg-white/[0.08]'
+                                                }`}>{label}</button>
+                                            ))}
+                                          </div>
+                                          {/* Tom */}
+                                          <div className="flex gap-1">
+                                            {[
+                                              { id: 'confronto', label: '⚡' },
+                                              { id: 'ajuda',     label: '🤝' },
+                                            ].map(({ id, label }) => (
+                                              <button key={id} title={id}
+                                                onClick={() => setTomPorTensao(prev => ({ ...prev, [key]: id }))}
+                                                className={`text-[10px] px-2 py-0.5 rounded transition border ${
+                                                  (tomPorTensao[key] || tensao.tom_sugerido || 'confronto') === id
+                                                    ? id === 'confronto'
+                                                      ? 'bg-rose-500/20 border-rose-500/30 text-rose-300'
+                                                      : 'bg-teal-500/20 border-teal-500/30 text-teal-300'
+                                                    : 'bg-white/[0.03] border-white/[0.06] text-white/25 hover:bg-white/[0.08]'
+                                                }`}>{label}</button>
+                                            ))}
+                                          </div>
+                                          <button
+                                            onClick={() => gerarGuiaParaTensao(trans, tensao, idx)}
+                                            disabled={gerando}
+                                            className="text-xs bg-violet-500/20 hover:bg-violet-500/30 text-violet-300 px-2 py-1 rounded whitespace-nowrap"
+                                          >
+                                            {gerando ? <SpinIcon /> : '🎬 Gerar guia'}
+                                          </button>
+                                        </div>
                                       ) : (
                                         <button
                                           onClick={() => toggleGuia(key)}
