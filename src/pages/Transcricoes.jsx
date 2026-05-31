@@ -48,11 +48,6 @@ export default function Transcricoes() {
 
   const [titulo, setTitulo] = useState('')
   const [tipo, setTipo] = useState('aula')
-  const [abaAtiva, setAbaAtiva] = useState('manual') // 'manual' | 'lote'
-  const [urlsLote, setUrlsLote] = useState('')
-  const [publicoLote, setPublicoLote] = useState('corretor')
-  const [importandoLote, setImportandoLote] = useState(false)
-  const [progressoLote, setProgressoLote] = useState({ atual: 0, total: 0, erros: 0 })
   const [texto, setTexto] = useState('')
   const [processando, setProcessando] = useState(false)
 
@@ -196,67 +191,42 @@ export default function Transcricoes() {
     }
   }
 
-  const toggleGuia = (key) => {
-    setGuiasAbertos(prev => ({ ...prev, [key]: !prev[key] }))
+  const extrairTensoes = async (transcricaoId) => {
+    const key = `tensoes_${transcricaoId}`
+    setGerandoTensao(prev => ({ ...prev, [key]: true }))
+    try {
+      const resp = await fetch(
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/extrair-tensoes`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`
+          },
+          body: JSON.stringify({ transcricao_id: transcricaoId })
+        }
+      )
+      const data = await resp.json()
+      if (!resp.ok) throw new Error(data.error || 'Erro ao extrair')
+      // Recarrega a transcrição para pegar os temas_brutos atualizados
+      const { data: trans } = await supabase
+        .from('transcricoes')
+        .select('*')
+        .eq('id', transcricaoId)
+        .single()
+      if (trans) {
+        setTranscricoes(prev => prev.map(t => t.id === transcricaoId ? trans : t))
+      }
+    } catch (e) {
+      console.error(e)
+      alert('Erro ao extrair tensões: ' + e.message)
+    } finally {
+      setGerandoTensao(prev => ({ ...prev, [key]: false }))
+    }
   }
 
-  const importarLote = async () => {
-    const urls = urlsLote
-      .split('\n')
-      .map(l => l.split('#')[0].trim()) // remove comentários
-      .filter(l => l.includes('youtube.com') || l.includes('youtu.be'))
-
-    if (urls.length === 0) {
-      alert('Nenhuma URL do YouTube encontrada. Cole as URLs do arquivo urls_para_apify.txt')
-      return
-    }
-
-    setImportandoLote(true)
-    setProgressoLote({ atual: 0, total: urls.length, erros: 0 })
-
-    let erros = 0
-    for (let i = 0; i < urls.length; i++) {
-      const url = urls[i]
-      setProgressoLote({ atual: i + 1, total: urls.length, erros })
-
-      try {
-        // Chama Edge Function que usa Apify para transcrever
-        const resp = await fetch(
-          `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/transcrever-youtube`,
-          {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`
-            },
-            body: JSON.stringify({ url, publico: publicoLote })
-          }
-        )
-        const data = await resp.json()
-        if (!resp.ok || data.error) {
-          console.warn(`Erro na URL ${url}:`, data.error)
-          erros++
-          continue
-        }
-        // Adiciona à lista local
-        if (data.transcricao) {
-          setTranscricoes(prev => [data.transcricao, ...prev])
-        }
-      } catch (e) {
-        console.error(e)
-        erros++
-      }
-
-      // Pausa entre requisições para não sobrecarregar
-      if (i < urls.length - 1) await new Promise(r => setTimeout(r, 2000))
-    }
-
-    setProgressoLote(prev => ({ ...prev, erros }))
-    setImportandoLote(false)
-
-    const sucesso = urls.length - erros
-    alert(`Importação concluída!\n✅ ${sucesso} transcrições importadas\n❌ ${erros} erros`)
-    if (sucesso > 0) setUrlsLote('')
+  const toggleGuia = (key) => {
+    setGuiasAbertos(prev => ({ ...prev, [key]: !prev[key] }))
   }
 
   return (
@@ -267,108 +237,39 @@ export default function Transcricoes() {
       </div>
 
       <div className="flex-1 overflow-y-auto p-6">
-        <div className="bg-[#111113] border border-white/[0.06] rounded-xl mb-6 overflow-hidden">
-          {/* Abas */}
-          <div className="flex border-b border-white/[0.06]">
-            {[
-              { id: 'manual', label: '✏️ Manual' },
-              { id: 'lote',   label: '📦 Importar em lote (YouTube)' },
-            ].map(({ id, label }) => (
-              <button key={id} onClick={() => setAbaAtiva(id)}
-                className={`flex-1 py-2.5 text-xs font-medium transition-all ${
-                  abaAtiva === id
-                    ? 'bg-white/[0.06] text-white/70 border-b-2 border-violet-500'
-                    : 'text-white/30 hover:text-white/50'
-                }`}>
-                {label}
-              </button>
-            ))}
+        <div className="bg-[#111113] border border-white/[0.06] rounded-xl p-4 mb-6">
+          <h2 className="text-sm font-medium mb-3">➕ Nova Transcrição</h2>
+          <div className="flex gap-2 mb-3">
+            <input
+              value={titulo}
+              onChange={e => setTitulo(e.target.value)}
+              placeholder="Título (opcional)..."
+              className="flex-1 bg-white/[0.04] border border-white/[0.06] rounded-lg px-3 py-2 text-sm text-[#E8E6E1] placeholder-white/20"
+            />
+            <select
+              value={tipo}
+              onChange={e => setTipo(e.target.value)}
+              className="bg-white/[0.04] border border-white/[0.06] rounded-lg px-2 py-2 text-xs text-white/50"
+            >
+              {TIPOS.map(t => <option key={t} value={t}>{t}</option>)}
+            </select>
           </div>
-
-          {/* Aba Manual */}
-          {abaAtiva === 'manual' && (
-            <div className="p-4">
-              <div className="flex gap-2 mb-3">
-                <input value={titulo} onChange={e => setTitulo(e.target.value)}
-                  placeholder="Título (opcional)..."
-                  className="flex-1 bg-white/[0.04] border border-white/[0.06] rounded-lg px-3 py-2 text-sm text-[#E8E6E1] placeholder-white/20" />
-                <select value={tipo} onChange={e => setTipo(e.target.value)}
-                  className="bg-white/[0.04] border border-white/[0.06] rounded-lg px-2 py-2 text-xs text-white/50">
-                  {TIPOS.map(t => <option key={t} value={t}>{t}</option>)}
-                </select>
-              </div>
-              <textarea value={texto} onChange={e => setTexto(e.target.value)}
-                placeholder="Cole aqui o conteúdo da transcrição, aula, podcast ou qualquer texto..."
-                rows={4}
-                className="w-full bg-white/[0.04] border border-white/[0.06] rounded-lg px-3 py-2 text-sm text-[#E8E6E1] placeholder-white/20 resize-none" />
-              <div className="flex justify-end mt-3">
-                <button onClick={handleProcessar} disabled={processando || !texto.trim()}
-                  className="flex items-center gap-2 px-4 py-2 bg-violet-500/15 hover:bg-violet-500/25 border border-violet-500/25 rounded-lg text-sm text-violet-300 transition-all disabled:opacity-40">
-                  {processando ? <><SpinIcon /> Processando...</> : <>◈ Processar Transcrição</>}
-                </button>
-              </div>
-            </div>
-          )}
-
-          {/* Aba Lote */}
-          {abaAtiva === 'lote' && (
-            <div className="p-4 space-y-3">
-              <p className="text-xs text-white/40">
-                Cole as URLs do YouTube (uma por linha). Pode colar direto do arquivo <code className="text-violet-400">urls_para_apify.txt</code>.
-              </p>
-
-              {/* Público padrão */}
-              <div className="flex gap-2">
-                <span className="text-xs text-white/40 self-center">Público padrão:</span>
-                {[
-                  { id: 'corretor',    label: '👔 Corretor'    },
-                  { id: 'proprietario', label: '🏠 Proprietário' },
-                ].map(({ id, label }) => (
-                  <button key={id} onClick={() => setPublicoLote(id)}
-                    className={`px-3 py-1 rounded-lg text-xs transition border ${
-                      publicoLote === id
-                        ? 'bg-violet-500/20 border-violet-500/30 text-violet-300'
-                        : 'bg-white/[0.03] border-white/[0.06] text-white/25 hover:bg-white/[0.07]'
-                    }`}>
-                    {label}
-                  </button>
-                ))}
-              </div>
-
-              <textarea
-                value={urlsLote}
-                onChange={e => setUrlsLote(e.target.value)}
-                placeholder={"https://www.youtube.com/watch?v=xxx\nhttps://www.youtube.com/watch?v=yyy\nhttps://www.youtube.com/watch?v=zzz"}
-                rows={6}
-                className="w-full bg-white/[0.04] border border-white/[0.06] rounded-lg px-3 py-2 text-sm text-[#E8E6E1] placeholder-white/20 resize-none font-mono text-xs"
-              />
-
-              {/* Progresso */}
-              {importandoLote && (
-                <div className="bg-white/[0.03] rounded-lg p-3">
-                  <div className="flex justify-between text-xs text-white/50 mb-1.5">
-                    <span>Importando... {progressoLote.atual}/{progressoLote.total}</span>
-                    {progressoLote.erros > 0 && <span className="text-red-400">{progressoLote.erros} erros</span>}
-                  </div>
-                  <div className="h-1.5 bg-white/[0.06] rounded-full overflow-hidden">
-                    <div className="h-full bg-violet-500 rounded-full transition-all"
-                      style={{ width: `${progressoLote.total > 0 ? (progressoLote.atual / progressoLote.total) * 100 : 0}%` }} />
-                  </div>
-                </div>
-              )}
-
-              <div className="flex items-center justify-between">
-                <span className="text-xs text-white/25">
-                  {urlsLote.split('\n').filter(l => l.includes('youtube')).length} URLs detectadas
-                </span>
-                <button onClick={importarLote}
-                  disabled={importandoLote || !urlsLote.trim()}
-                  className="flex items-center gap-2 px-4 py-2 bg-violet-500/15 hover:bg-violet-500/25 border border-violet-500/25 rounded-lg text-sm text-violet-300 transition-all disabled:opacity-40">
-                  {importandoLote ? <><SpinIcon /> Importando...</> : '📦 Importar tudo'}
-                </button>
-              </div>
-            </div>
-          )}
+          <textarea
+            value={texto}
+            onChange={e => setTexto(e.target.value)}
+            placeholder="Cole aqui o conteúdo da transcrição, aula, podcast ou qualquer texto..."
+            rows={4}
+            className="w-full bg-white/[0.04] border border-white/[0.06] rounded-lg px-3 py-2 text-sm text-[#E8E6E1] placeholder-white/20 resize-none"
+          />
+          <div className="flex justify-end mt-3">
+            <button
+              onClick={handleProcessar}
+              disabled={processando || !texto.trim()}
+              className="flex items-center gap-2 px-4 py-2 bg-violet-500/15 hover:bg-violet-500/25 border border-violet-500/25 rounded-lg text-sm text-violet-300 transition-all disabled:opacity-40"
+            >
+              {processando ? <><SpinIcon /> Processando...</> : <>◈ Processar Transcrição</>}
+            </button>
+          </div>
         </div>
 
         {loading ? (
@@ -415,6 +316,22 @@ export default function Transcricoes() {
                           <div>
                             <div className="text-[10px] uppercase text-white/30 mb-1">📝 Resumo</div>
                             <p className="text-sm text-white/60">{trans.resumo}</p>
+                          </div>
+                        )}
+
+                        {/* Botão extrair tensões quando não tem */}
+                        {(!trans.temas_brutos || trans.temas_brutos.length === 0) && (
+                          <div className="flex items-center justify-between py-2 px-3 bg-white/[0.02] border border-white/[0.05] rounded-lg">
+                            <span className="text-xs text-white/30">
+                              {trans.status === 'processado' ? '⚠️ Sem tensões extraídas' : '⏳ Tensões não extraídas ainda'}
+                            </span>
+                            <button
+                              onClick={() => extrairTensoes(trans.id)}
+                              disabled={gerandoTensao[`tensoes_${trans.id}`]}
+                              className="text-xs px-3 py-1.5 bg-violet-500/20 hover:bg-violet-500/30 text-violet-300 rounded-lg transition disabled:opacity-40 flex items-center gap-1.5"
+                            >
+                              {gerandoTensao[`tensoes_${trans.id}`] ? <><SpinIcon /> Extraindo...</> : '⚡ Extrair tensões'}
+                            </button>
                           </div>
                         )}
 
