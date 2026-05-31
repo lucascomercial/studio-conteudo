@@ -45,7 +45,12 @@ export default function Transcricoes() {
   const [guiasPorTensao, setGuiasPorTensao] = useState({})
   const [gerandoTensao, setGerandoTensao] = useState({})
   const [guiasAbertos, setGuiasAbertos] = useState({})
-  const [tomPorTensao, setTomPorTensao] = useState({})
+  const [tomPorTensao, setTomPorTensao] = useState({})  // guarda tom E publico por key
+  const [abaAtiva, setAbaAtiva] = useState('manual')
+  const [urlsLote, setUrlsLote] = useState('')
+  const [publicoLote, setPublicoLote] = useState('corretor')
+  const [importandoLote, setImportandoLote] = useState(false)
+  const [progressoLote, setProgressoLote] = useState({ atual: 0, total: 0, erros: 0 })
 
   const [titulo, setTitulo] = useState('')
   const [tipo, setTipo] = useState('aula')
@@ -198,6 +203,58 @@ export default function Transcricoes() {
     setGuiasAbertos(prev => ({ ...prev, [key]: !prev[key] }))
   }
 
+  // Import em lote
+  const importarLote = async () => {
+    const urls = urlsLote
+      .split('\n')
+      .map(l => l.split('#')[0].trim())
+      .filter(l => l.includes('youtube.com') || l.includes('youtu.be'))
+    if (urls.length === 0) { alert('Nenhuma URL do YouTube encontrada.'); return }
+    setImportandoLote(true)
+    setProgressoLote({ atual: 0, total: urls.length, erros: 0 })
+    let erros = 0
+    for (let i = 0; i < urls.length; i++) {
+      setProgressoLote({ atual: i + 1, total: urls.length, erros })
+      try {
+        const resp = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/transcrever-youtube`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}` },
+          body: JSON.stringify({ url: urls[i], publico: publicoLote })
+        })
+        const data = await resp.json()
+        if (!resp.ok || data.error) { erros++; continue }
+        if (data.transcricao) setTranscricoes(prev => [data.transcricao, ...prev])
+      } catch (e) { erros++ }
+      if (i < urls.length - 1) await new Promise(r => setTimeout(r, 2000))
+    }
+    setProgressoLote(prev => ({ ...prev, erros }))
+    setImportandoLote(false)
+    alert(`Importação concluída!\n✅ ${urls.length - erros} importadas\n❌ ${erros} erros`)
+    if (urls.length - erros > 0) setUrlsLote('')
+  }
+
+  // Extrair tensões manualmente
+  const extrairTensoes = async (transcricaoId) => {
+    const key = `tensoes_${transcricaoId}`
+    setGerandoTensao(prev => ({ ...prev, [key]: true }))
+    try {
+      const resp = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/extrair-tensoes`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}` },
+        body: JSON.stringify({
+          transcricao_id: transcricaoId,
+          publico: tomPorTensao[`pub_trans_${transcricaoId}`] || 'corretor',
+          tom: tomPorTensao[`tom_trans_${transcricaoId}`] || 'confronto'
+        })
+      })
+      const data = await resp.json()
+      if (!resp.ok) throw new Error(data.error || 'Erro ao extrair')
+      const { data: trans } = await supabase.from('transcricoes').select('*').eq('id', transcricaoId).single()
+      if (trans) setTranscricoes(prev => prev.map(t => t.id === transcricaoId ? trans : t))
+    } catch (e) { alert('Erro: ' + e.message) }
+    finally { setGerandoTensao(prev => ({ ...prev, [key]: false })) }
+  }
+
   return (
     <div className="flex flex-col h-full">
       <div className="border-b border-white/[0.06] px-6 py-4">
@@ -206,7 +263,16 @@ export default function Transcricoes() {
       </div>
 
       <div className="flex-1 overflow-y-auto p-6">
-        <div className="bg-[#111113] border border-white/[0.06] rounded-xl p-4 mb-6">
+        <div className="bg-[#111113] border border-white/[0.06] rounded-xl mb-6 overflow-hidden">
+          <div className="flex border-b border-white/[0.06]">
+            {['manual','lote'].map(id => (
+              <button key={id} onClick={() => setAbaAtiva(id)}
+                className={`flex-1 py-2.5 text-xs font-medium transition-all ${abaAtiva === id ? 'bg-white/[0.06] text-white/70 border-b-2 border-violet-500' : 'text-white/30 hover:text-white/50'}`}>
+                {id === 'manual' ? '✏️ Manual' : '📦 Importar em lote (YouTube)'}
+              </button>
+            ))}
+          </div>
+          {abaAtiva === 'manual' && <div className="p-4">
           <h2 className="text-sm font-medium mb-3">➕ Nova Transcrição</h2>
           <div className="flex gap-2 mb-3">
             <input
@@ -231,14 +297,46 @@ export default function Transcricoes() {
             className="w-full bg-white/[0.04] border border-white/[0.06] rounded-lg px-3 py-2 text-sm text-[#E8E6E1] placeholder-white/20 resize-none"
           />
           <div className="flex justify-end mt-3">
-            <button
-              onClick={handleProcessar}
-              disabled={processando || !texto.trim()}
-              className="flex items-center gap-2 px-4 py-2 bg-violet-500/15 hover:bg-violet-500/25 border border-violet-500/25 rounded-lg text-sm text-violet-300 transition-all disabled:opacity-40"
-            >
+            <button onClick={handleProcessar} disabled={processando || !texto.trim()}
+              className="flex items-center gap-2 px-4 py-2 bg-violet-500/15 hover:bg-violet-500/25 border border-violet-500/25 rounded-lg text-sm text-violet-300 transition-all disabled:opacity-40">
               {processando ? <><SpinIcon /> Processando...</> : <>◈ Processar Transcrição</>}
             </button>
           </div>
+          </div>}
+          {abaAtiva === 'lote' && <div className="p-4 space-y-3">
+            <p className="text-xs text-white/40">Cole as URLs do YouTube (uma por linha) do arquivo <code className="text-violet-400">urls_para_apify.txt</code>.</p>
+            <div className="flex gap-2">
+              <span className="text-xs text-white/40 self-center">Público:</span>
+              {[{id:'corretor',label:'👔 Corretor'},{id:'proprietario',label:'🏠 Proprietário'}].map(({id,label}) => (
+                <button key={id} onClick={() => setPublicoLote(id)}
+                  className={`px-3 py-1 rounded-lg text-xs transition border ${publicoLote===id?'bg-violet-500/20 border-violet-500/30 text-violet-300':'bg-white/[0.03] border-white/[0.06] text-white/25 hover:bg-white/[0.07]'}`}>
+                  {label}
+                </button>
+              ))}
+            </div>
+            <textarea value={urlsLote} onChange={e => setUrlsLote(e.target.value)}
+              placeholder={"https://www.youtube.com/watch?v=xxx\nhttps://www.youtube.com/watch?v=yyy"}
+              rows={5} className="w-full bg-white/[0.04] border border-white/[0.06] rounded-lg px-3 py-2 text-xs text-[#E8E6E1] placeholder-white/20 resize-none font-mono" />
+            {importandoLote && (
+              <div className="bg-white/[0.03] rounded-lg p-3">
+                <div className="flex justify-between text-xs text-white/50 mb-1.5">
+                  <span>Importando... {progressoLote.atual}/{progressoLote.total}</span>
+                  {progressoLote.erros > 0 && <span className="text-red-400">{progressoLote.erros} erros</span>}
+                </div>
+                <div className="h-1.5 bg-white/[0.06] rounded-full overflow-hidden">
+                  <div className="h-full bg-violet-500 rounded-full transition-all"
+                    style={{ width: `${progressoLote.total > 0 ? (progressoLote.atual/progressoLote.total)*100 : 0}%` }} />
+                </div>
+              </div>
+            )}
+            <div className="flex items-center justify-between">
+              <span className="text-xs text-white/25">{urlsLote.split('\n').filter(l=>l.includes('youtube')).length} URLs</span>
+              <button onClick={importarLote} disabled={importandoLote || !urlsLote.trim()}
+                className="flex items-center gap-2 px-4 py-2 bg-violet-500/15 hover:bg-violet-500/25 border border-violet-500/25 rounded-lg text-sm text-violet-300 transition-all disabled:opacity-40">
+                {importandoLote ? <><SpinIcon /> Importando...</> : '📦 Importar tudo'}
+              </button>
+            </div>
+          </div>}
         </div>
 
         {loading ? (
@@ -288,6 +386,28 @@ export default function Transcricoes() {
                           </div>
                         )}
 
+                        {(!trans.temas_brutos || trans.temas_brutos.length === 0) && (
+                          <div className="p-3 bg-white/[0.02] border border-white/[0.05] rounded-lg space-y-2">
+                            <span className="text-[10px] uppercase text-white/25">⏳ Tensões não extraídas</span>
+                            <div className="flex gap-1.5 flex-wrap">
+                              <span className="text-[10px] text-white/30 self-center">Público:</span>
+                              {[{id:'corretor',label:'👔 Corretor'},{id:'proprietario',label:'🏠 Proprietário'}].map(({id,label}) => (
+                                <button key={id} onClick={() => setTomPorTensao(prev=>({...prev,[`pub_trans_${trans.id}`]:id}))}
+                                  className={`px-2 py-0.5 rounded text-[10px] border transition ${(tomPorTensao[`pub_trans_${trans.id}`]||'corretor')===id?'bg-violet-500/20 border-violet-500/30 text-violet-300':'bg-white/[0.03] border-white/[0.06] text-white/25 hover:bg-white/[0.07]'}`}>{label}</button>
+                              ))}
+                              <span className="text-[10px] text-white/30 self-center ml-1">Tom:</span>
+                              {[{id:'confronto',label:'⚡'},{id:'ajuda',label:'🤝'}].map(({id,label}) => (
+                                <button key={id} onClick={() => setTomPorTensao(prev=>({...prev,[`tom_trans_${trans.id}`]:id}))}
+                                  className={`px-2 py-0.5 rounded text-[10px] border transition ${(tomPorTensao[`tom_trans_${trans.id}`]||'confronto')===id?id==='confronto'?'bg-rose-500/20 border-rose-500/30 text-rose-300':'bg-teal-500/20 border-teal-500/30 text-teal-300':'bg-white/[0.03] border-white/[0.06] text-white/25 hover:bg-white/[0.07]'}`}>{label}</button>
+                              ))}
+                            </div>
+                            <button onClick={() => extrairTensoes(trans.id)} disabled={gerandoTensao[`tensoes_${trans.id}`]}
+                              className="w-full text-xs px-3 py-2 bg-violet-500/20 hover:bg-violet-500/30 text-violet-300 rounded-lg transition disabled:opacity-40 flex items-center justify-center gap-1.5">
+                              {gerandoTensao[`tensoes_${trans.id}`] ? <><SpinIcon /> Extraindo...</> : '⚡ Extrair tensões'}
+                            </button>
+                          </div>
+                        )}
+
                         {trans.temas_brutos?.length > 0 && (
                           <div>
                             <div className="text-[10px] uppercase text-white/30 mb-2">⚡ Tensões extraídas</div>
@@ -321,44 +441,23 @@ export default function Transcricoes() {
                                         )}
                                       </div>
                                       {!guia ? (
-                                        <div className="ml-2 flex flex-col gap-1.5 items-end shrink-0">
-                                          {/* Público */}
+                                        <div className="ml-2 flex flex-col gap-1 items-end shrink-0">
                                           <div className="flex gap-1">
-                                            {[
-                                              { id: 'corretor',     label: '👔' },
-                                              { id: 'proprietario', label: '🏠' },
-                                            ].map(({ id, label }) => (
+                                            {[{id:'corretor',label:'👔'},{id:'proprietario',label:'🏠'}].map(({id,label}) => (
                                               <button key={id} title={id}
-                                                onClick={() => setTomPorTensao(prev => ({ ...prev, [`pub_${key}`]: id }))}
-                                                className={`text-[10px] px-2 py-0.5 rounded transition border ${
-                                                  (tomPorTensao[`pub_${key}`] || tensao.publico_sugerido || 'corretor') === id
-                                                    ? 'bg-violet-500/25 border-violet-500/40 text-violet-300'
-                                                    : 'bg-white/[0.03] border-white/[0.06] text-white/25 hover:bg-white/[0.08]'
-                                                }`}>{label}</button>
+                                                onClick={() => setTomPorTensao(prev => ({...prev,[`pub_${key}`]:id}))}
+                                                className={`text-[10px] px-1.5 py-0.5 rounded border transition ${(tomPorTensao[`pub_${key}`]||tensao.publico_sugerido||'corretor')===id?'bg-violet-500/25 border-violet-500/40 text-violet-300':'bg-white/[0.03] border-white/[0.06] text-white/25 hover:bg-white/[0.08]'}`}>{label}</button>
                                             ))}
                                           </div>
-                                          {/* Tom */}
                                           <div className="flex gap-1">
-                                            {[
-                                              { id: 'confronto', label: '⚡' },
-                                              { id: 'ajuda',     label: '🤝' },
-                                            ].map(({ id, label }) => (
+                                            {[{id:'confronto',label:'⚡'},{id:'ajuda',label:'🤝'}].map(({id,label}) => (
                                               <button key={id} title={id}
-                                                onClick={() => setTomPorTensao(prev => ({ ...prev, [key]: id }))}
-                                                className={`text-[10px] px-2 py-0.5 rounded transition border ${
-                                                  (tomPorTensao[key] || tensao.tom_sugerido || 'confronto') === id
-                                                    ? id === 'confronto'
-                                                      ? 'bg-rose-500/20 border-rose-500/30 text-rose-300'
-                                                      : 'bg-teal-500/20 border-teal-500/30 text-teal-300'
-                                                    : 'bg-white/[0.03] border-white/[0.06] text-white/25 hover:bg-white/[0.08]'
-                                                }`}>{label}</button>
+                                                onClick={() => setTomPorTensao(prev => ({...prev,[key]:id}))}
+                                                className={`text-[10px] px-1.5 py-0.5 rounded border transition ${(tomPorTensao[key]||tensao.tom_sugerido||'confronto')===id?id==='confronto'?'bg-rose-500/20 border-rose-500/30 text-rose-300':'bg-teal-500/20 border-teal-500/30 text-teal-300':'bg-white/[0.03] border-white/[0.06] text-white/25 hover:bg-white/[0.08]'}`}>{label}</button>
                                             ))}
                                           </div>
-                                          <button
-                                            onClick={() => gerarGuiaParaTensao(trans, tensao, idx)}
-                                            disabled={gerando}
-                                            className="text-xs bg-violet-500/20 hover:bg-violet-500/30 text-violet-300 px-2 py-1 rounded whitespace-nowrap"
-                                          >
+                                          <button onClick={() => gerarGuiaParaTensao(trans, tensao, idx)} disabled={gerando}
+                                            className="text-xs bg-violet-500/20 hover:bg-violet-500/30 text-violet-300 px-2 py-1 rounded whitespace-nowrap">
                                             {gerando ? <SpinIcon /> : '🎬 Gerar guia'}
                                           </button>
                                         </div>
