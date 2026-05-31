@@ -357,8 +357,22 @@ export default function Transcricoes() {
                       <span className="text-[10px] text-white/30">
                         {new Date(trans.created_at).toLocaleDateString('pt-BR')}
                       </span>
+                      {trans.publico_sugerido && (
+                        <span className={`text-[10px] px-2 py-0.5 rounded-full ${trans.publico_sugerido === 'proprietario' ? 'bg-teal-500/20 text-teal-400' : 'bg-violet-500/20 text-violet-400'}`}>
+                          {trans.publico_sugerido === 'proprietario' ? '🏠 Proprietário' : '👔 Corretor'}
+                        </span>
+                      )}
                     </div>
-                    <h3 className="font-medium text-[#E8E6E1]">{trans.titulo}</h3>
+                    <h3 className="font-medium text-[#E8E6E1] leading-snug">
+                      {trans.titulo && trans.titulo !== `YouTube ${trans.fonte_url?.match(/[?&]v=([^&]+)/)?.[1]}`
+                        ? trans.titulo
+                        : trans.fonte_url
+                          ? `YouTube · ${trans.fonte_url.match(/[?&]v=([^&]+)/)?.[1] || trans.fonte_url.slice(-11)}`
+                          : trans.titulo || 'Sem título'}
+                    </h3>
+                    {trans.fonte_url && trans.titulo && trans.titulo.length > 5 && !trans.titulo.startsWith('YouTube') && (
+                      <p className="text-[10px] text-white/25 mt-0.5 truncate">{trans.fonte_url.match(/[?&]v=([^&]+)/)?.[1]}</p>
+                    )}
                     {trans.resumo && <p className="text-xs text-white/40 mt-1 line-clamp-2">{trans.resumo}</p>}
                     <div className="flex items-center gap-3 mt-2">
                       <span className="text-xs text-white/30">📊 {trans.roteiros_gerados || 0} roteiros</span>
