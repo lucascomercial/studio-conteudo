@@ -67,61 +67,8 @@ function GuiaCard({ guia, onDragStart, onAbrir, compact = false }) {
       </div>
     </div>
 
-      {/* Modal de guia */}
-      {guiaAberta && (
-        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-end sm:items-center justify-center p-4"
-          onClick={() => setGuiaAberta(null)}>
-          <div className="bg-[#141416] border border-white/[0.08] rounded-2xl w-full max-w-lg max-h-[85vh] overflow-y-auto"
-            onClick={e => e.stopPropagation()}>
-            <div className="p-4 border-b border-white/[0.06] flex items-start justify-between">
-              <div>
-                <p className="text-sm font-medium text-[#E8E6E1] leading-snug">{guiaAberta.titulo || guiaAberta.tensao_texto}</p>
-                <div className="flex gap-2 mt-1.5">
-                  <span className="text-[10px] text-white/30">{guiaAberta.publico_alvo === 'proprietario' ? '🏠 Proprietário' : '👔 Corretor'}</span>
-                  <span className="text-[10px] text-white/30">{guiaAberta.tom_roteiro === 'ajuda' ? '🤝 Ajuda' : '⚡ Confronto'}</span>
-                  {guiaAberta.potencial_viral >= 7 && <span className="text-[10px] text-red-400">🔥 {guiaAberta.potencial_viral}</span>}
-                </div>
-              </div>
-              <button onClick={() => setGuiaAberta(null)} className="text-white/30 hover:text-white/60 text-lg leading-none">×</button>
-            </div>
-            <div className="p-4 space-y-3">
-              {guiaAberta.gancho && (
-                <div className="p-3 bg-amber-500/10 border border-amber-500/20 rounded-xl">
-                  <div className="text-[10px] uppercase text-amber-400/60 mb-1">🎬 Gancho</div>
-                  <p className="text-sm text-[#E8E6E1]">"{guiaAberta.gancho}"</p>
-                </div>
-              )}
-              {guiaAberta.alma_do_conteudo && (
-                <div className="p-3 border border-white/[0.08] rounded-xl text-center">
-                  <div className="text-[10px] uppercase text-white/20 mb-1">⚡ Alma</div>
-                  <p className="text-xs font-medium text-amber-400">{guiaAberta.alma_do_conteudo}</p>
-                </div>
-              )}
-              {guiaAberta.roteiro_video && (
-                <div>
-                  <div className="text-[10px] uppercase text-white/20 mb-1.5">🎙️ Roteiro corrido</div>
-                  <p className="text-xs text-white/55 leading-relaxed whitespace-pre-wrap bg-white/[0.02] p-3 rounded-lg">{guiaAberta.roteiro_video}</p>
-                </div>
-              )}
-              {guiaAberta.roteiro_cortes && (
-                <div>
-                  <div className="text-[10px] uppercase text-white/20 mb-1.5">✂️ Roteiro cortes</div>
-                  <pre className="text-xs text-white/55 leading-relaxed whitespace-pre-wrap bg-white/[0.02] p-3 rounded-lg font-sans">{guiaAberta.roteiro_cortes}</pre>
-                </div>
-              )}
-              {guiaAberta.cta && (
-                <div className="p-3 bg-emerald-500/10 border border-emerald-500/20 rounded-xl">
-                  <div className="text-[10px] uppercase text-emerald-400/60 mb-1">📢 CTA</div>
-                  <p className="text-xs text-white/70">"{guiaAberta.cta}"</p>
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
-    </div>
-  )
 }
+
 
 function Coluna({ titulo, date, label, isHoje, guias, onDragOver, onDrop, onDragStart, onRemover, onAbrir, meta = 3 }) {
   const gravados = guias.filter(g => g.status === 'gravado' || g.status === 'publicado').length
@@ -183,6 +130,7 @@ function Coluna({ titulo, date, label, isHoje, guias, onDragOver, onDrop, onDrag
           </div>
         )}
       </div>
+    </div>
     </div>
   )
 }
@@ -398,6 +346,58 @@ export default function Planner() {
           </div>
         </div>
       </div>
+      {/* Modal de guia */}
+      {guiaAberta && (
+        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-end sm:items-center justify-center p-4"
+          onClick={() => setGuiaAberta(null)}>
+          <div className="bg-[#141416] border border-white/[0.08] rounded-2xl w-full max-w-lg max-h-[85vh] overflow-y-auto"
+            onClick={e => e.stopPropagation()}>
+            <div className="p-4 border-b border-white/[0.06] flex items-start justify-between">
+              <div>
+                <p className="text-sm font-medium text-[#E8E6E1] leading-snug">{guiaAberta.titulo || guiaAberta.tensao_texto}</p>
+                <div className="flex gap-2 mt-1.5">
+                  <span className="text-[10px] text-white/30">{guiaAberta.publico_alvo === 'proprietario' ? '🏠 Proprietário' : '👔 Corretor'}</span>
+                  <span className="text-[10px] text-white/30">{guiaAberta.tom_roteiro === 'ajuda' ? '🤝 Ajuda' : '⚡ Confronto'}</span>
+                  {guiaAberta.potencial_viral >= 7 && <span className="text-[10px] text-red-400">🔥 {guiaAberta.potencial_viral}</span>}
+                </div>
+              </div>
+              <button onClick={() => setGuiaAberta(null)} className="text-white/30 hover:text-white/60 text-xl leading-none ml-4">×</button>
+            </div>
+            <div className="p-4 space-y-3">
+              {guiaAberta.gancho && (
+                <div className="p-3 bg-amber-500/10 border border-amber-500/20 rounded-xl">
+                  <div className="text-[10px] uppercase text-amber-400/60 mb-1">🎬 Gancho</div>
+                  <p className="text-sm text-[#E8E6E1]">"{guiaAberta.gancho}"</p>
+                </div>
+              )}
+              {guiaAberta.alma_do_conteudo && (
+                <div className="p-3 border border-white/[0.08] rounded-xl text-center">
+                  <div className="text-[10px] uppercase text-white/20 mb-1">⚡ Alma</div>
+                  <p className="text-xs font-medium text-amber-400">{guiaAberta.alma_do_conteudo}</p>
+                </div>
+              )}
+              {guiaAberta.roteiro_video && (
+                <div>
+                  <div className="text-[10px] uppercase text-white/20 mb-1.5">🎙️ Corrido</div>
+                  <p className="text-xs text-white/55 leading-relaxed whitespace-pre-wrap bg-white/[0.02] p-3 rounded-lg">{guiaAberta.roteiro_video}</p>
+                </div>
+              )}
+              {guiaAberta.roteiro_cortes && (
+                <div>
+                  <div className="text-[10px] uppercase text-white/20 mb-1.5">✂️ Cortes</div>
+                  <pre className="text-xs text-white/55 leading-relaxed whitespace-pre-wrap bg-white/[0.02] p-3 rounded-lg font-sans">{guiaAberta.roteiro_cortes}</pre>
+                </div>
+              )}
+              {guiaAberta.cta && (
+                <div className="p-3 bg-emerald-500/10 border border-emerald-500/20 rounded-xl">
+                  <div className="text-[10px] uppercase text-emerald-400/60 mb-1">📢 CTA</div>
+                  <p className="text-xs text-white/70">"{guiaAberta.cta}"</p>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
