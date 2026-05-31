@@ -66,7 +66,7 @@ function GuiaCard({ guia, onDragStart, onAbrir, compact = false }) {
         {status === 'publicado' && <span className="text-[9px] text-emerald-400 ml-auto">📱</span>}
       </div>
     </div>
-
+  )
 }
 
 
