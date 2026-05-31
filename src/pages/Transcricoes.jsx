@@ -45,6 +45,7 @@ export default function Transcricoes() {
   const [guiasPorTensao, setGuiasPorTensao] = useState({})
   const [gerandoTensao, setGerandoTensao] = useState({})
   const [guiasAbertos, setGuiasAbertos] = useState({})
+  const [tomPorTensao, setTomPorTensao] = useState({})
 
   const [titulo, setTitulo] = useState('')
   const [tipo, setTipo] = useState('aula')
