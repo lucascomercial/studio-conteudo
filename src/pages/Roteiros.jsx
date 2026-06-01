@@ -416,8 +416,37 @@ function GuiaModal({ guia, onClose, onDelete, onRecriar, onStatusChange }) {
               </div>
             </div>
             {roteiro ? (
-              <div className="bg-white/5 p-4 rounded-lg whitespace-pre-wrap text-sm text-white/80 leading-relaxed">
-                {roteiro}
+              <div className="relative group">
+                {editando ? (
+                  <div className="space-y-2">
+                    <textarea
+                      value={textoEditado}
+                      onChange={e => setTextoEditado(e.target.value)}
+                      rows={10}
+                      className="w-full bg-white/[0.04] border border-violet-500/30 rounded-lg px-3 py-2 text-sm text-[#E8E6E1] leading-relaxed resize-none focus:outline-none focus:border-violet-500/60 font-sans"
+                    />
+                    <div className="flex gap-2">
+                      <button onClick={() => setEditando(false)}
+                        className="flex-1 py-1.5 bg-white/[0.06] rounded-lg text-xs text-white/40 hover:bg-white/[0.1] transition">
+                        Cancelar
+                      </button>
+                      <button onClick={salvarEdicao} disabled={salvandoEdicao}
+                        className="flex-1 py-1.5 bg-emerald-500/20 border border-emerald-500/30 rounded-lg text-xs text-emerald-400 hover:bg-emerald-500/30 transition disabled:opacity-40">
+                        {salvandoEdicao ? 'Salvando...' : '✓ Salvar edição'}
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <>
+                    <div className="bg-white/5 p-4 rounded-lg whitespace-pre-wrap text-sm text-white/80 leading-relaxed">
+                      {roteiro}
+                    </div>
+                    <button onClick={iniciarEdicao}
+                      className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 text-[10px] px-2 py-1 bg-white/[0.08] hover:bg-white/[0.15] text-white/50 rounded-lg transition-all">
+                      ✏️ Editar
+                    </button>
+                  </>
+                )}
               </div>
             ) : (
               <p className="text-xs text-white/30 text-center py-4">
