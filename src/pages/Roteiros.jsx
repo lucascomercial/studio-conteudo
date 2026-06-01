@@ -441,10 +441,12 @@ function GuiaModal({ guia, onClose, onDelete, onRecriar, onStatusChange }) {
                     <div className="bg-white/5 p-4 rounded-lg whitespace-pre-wrap text-sm text-white/80 leading-relaxed">
                       {roteiro}
                     </div>
-                    <button onClick={iniciarEdicao}
-                      className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 text-[10px] px-2 py-1 bg-white/[0.08] hover:bg-white/[0.15] text-white/50 rounded-lg transition-all">
-                      ✏️ Editar
-                    </button>
+                    <div className="flex justify-end mt-1.5">
+                      <button onClick={iniciarEdicao}
+                        className="text-[10px] px-2.5 py-1 bg-white/[0.06] hover:bg-white/[0.12] text-white/40 rounded-lg transition">
+                        ✏️ Editar roteiro
+                      </button>
+                    </div>
                   </>
                 )}
               </div>
@@ -768,11 +770,9 @@ export default function Roteiros() {
               <input type="text" placeholder="Buscar guia..." value={busca} onChange={e => setBusca(e.target.value)} className="bg-white/[0.04] border border-white/[0.06] rounded-lg pl-7 pr-3 py-1.5 text-xs w-48" />
             </div>
             <select value={filtroPublico} onChange={e => setFiltroPublico(e.target.value)} className="bg-white/[0.04] border border-white/[0.06] rounded-lg px-2.5 py-1.5 text-xs text-white/50">
-              <option value="">Todos os públicos</option>
-              <option value="corretor">🎯 Corretor</option>
+              <option value="">Todos públicos</option>
+              <option value="corretor">👔 Corretor</option>
               <option value="proprietario">🏠 Proprietário</option>
-              <option value="comprador">💰 Comprador</option>
-              <option value="investidor">📈 Investidor</option>
             </select>
             <select value={filtroStatus} onChange={e => setFiltroStatus(e.target.value)} className="bg-white/[0.04] border border-white/[0.06] rounded-lg px-2.5 py-1.5 text-xs text-white/50">
               <option value="">Todos status</option>
