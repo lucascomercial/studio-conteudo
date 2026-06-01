@@ -436,6 +436,23 @@ export default function GravacaoRapida() {
 
               {/* Ações principais */}
               <div className="space-y-2 pt-1">
+
+                {/* Navegação entre vídeos */}
+                {guias.length > 1 && (
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => { setIndex(i => Math.max(0, i-1)); setVerRoteiro(false); setVerTira(false); setEditando(false) }}
+                      disabled={index === 0}
+                      className="px-4 py-2.5 rounded-xl border border-white/[0.06] text-white/30 hover:text-white/55 transition disabled:opacity-20 text-sm"
+                    >←</button>
+                    <button
+                      onClick={() => { setIndex(i => Math.min(guias.length-1, i+1)); setVerRoteiro(false); setVerTira(false); setEditando(false) }}
+                      disabled={index >= guias.length - 1}
+                      className="flex-1 py-2.5 rounded-xl border border-white/[0.06] text-white/30 hover:text-white/55 text-sm transition disabled:opacity-20"
+                    >Próxima →</button>
+                  </div>
+                )}
+
                 {guia.status !== 'gravado' && guia.status !== 'publicado' && (
                   <motion.button onClick={() => atualizarStatus('gravado')} disabled={salvando}
                     animate={feedback==='gravado'?{scale:[1,1.03,1]}:{}}
