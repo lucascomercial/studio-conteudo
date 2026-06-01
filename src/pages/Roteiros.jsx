@@ -47,8 +47,9 @@ function GuiaModal({ guia, onClose, onDelete, onRecriar }) {
   const [deletando, setDeletando] = useState(false)
   const [roteiro, setRoteiro] = useState(guia.roteiro_video || '')
   const [gerandoRoteiro, setGerandoRoteiro] = useState(false)
-  const [estiloRoteiro, setEstiloRoteiro] = useState('direto')
+  const [estiloRoteiro, setEstiloRoteiro] = useState('corrido')
   const [copiado, setCopiado] = useState(false)
+  useEffect(() => { setRoteiro(estiloRoteiro === 'cortes' ? (guia.roteiro_cortes || '') : (guia.roteiro_video || '')) }, [estiloRoteiro])
   const isProfundo = !!guia.o_que_isso_realmente_quer_dizer || !!guia.subtexto_escondido
 
   const handleDelete = async () => {
@@ -369,17 +370,14 @@ function GuiaModal({ guia, onClose, onDelete, onRecriar }) {
             <div className="flex justify-between items-center mb-3">
               <div className="text-[10px] uppercase text-white/30">🎙️ ROTEIRO PARA VÍDEO</div>
               <div className="flex gap-2 items-center">
-                <select
-                  value={estiloRoteiro}
-                  onChange={(e) => setEstiloRoteiro(e.target.value)}
-                  className="text-xs bg-white/10 border border-white/[0.06] rounded px-2 py-1"
-                  disabled={gerandoRoteiro}
-                >
-                  <option value="direto">🎙️ Direto</option>
-                  <option value="confronto">⚡ Confronto</option>
-                  <option value="calmo">🧘 Calmo</option>
-                  <option value="tecnico">📊 Técnico</option>
-                </select>
+                <div className="flex gap-1">
+                  {[{id:'corrido',label:'🎙️ Corrido'},{id:'cortes',label:'✂️ Cortes'}].map(({id,label}) => (
+                    <button key={id} onClick={() => setEstiloRoteiro(id)} disabled={gerandoRoteiro}
+                      className={`text-xs px-2.5 py-1 rounded transition border ${estiloRoteiro===id?'bg-white/15 border-white/25 text-white/70':'bg-white/[0.04] border-white/[0.07] text-white/30 hover:bg-white/[0.08]'}`}>
+                      {label}
+                    </button>
+                  ))}
+                </div>
                 <button
                   onClick={gerarRoteiro}
                   disabled={gerandoRoteiro}
