@@ -45,11 +45,10 @@ function Badge({ label, className }) {
 
 function GuiaModal({ guia, onClose, onDelete, onRecriar }) {
   const [deletando, setDeletando] = useState(false)
+  const [estiloRoteiro, setEstiloRoteiro] = useState('corrido')
   const [roteiro, setRoteiro] = useState(guia.roteiro_video || '')
   useEffect(() => { setRoteiro(estiloRoteiro === 'cortes' ? (guia.roteiro_cortes || '') : (guia.roteiro_video || '')) }, [estiloRoteiro])
   const [gerandoRoteiro, setGerandoRoteiro] = useState(false)
-  const [estiloRoteiro, setEstiloRoteiro] = useState('corrido')
-  const [copiado, setCopiado] = useState(false)
   const isProfundo = !!guia.o_que_isso_realmente_quer_dizer || !!guia.subtexto_escondido
 
   const handleDelete = async () => {
