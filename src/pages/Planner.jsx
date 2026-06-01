@@ -38,7 +38,7 @@ function getDiasSemana(offset = 0) {
   })
 }
 
-function GuiaCard({ guia, onDragStart, onAbrir, compact = false }) {
+function GuiaCard({ guia, onDragStart, onAbrir, onSelecionar, selecionada, compact = false }) {
   const publico = guia.publico_alvo === 'proprietario' ? '🏠' : '👔'
   const tom = guia.tom_roteiro === 'ajuda' ? '🤝' : '⚡'
   const status = guia.status
@@ -47,8 +47,18 @@ function GuiaCard({ guia, onDragStart, onAbrir, compact = false }) {
     <div
       draggable
       onDragStart={(e) => { e.stopPropagation(); onDragStart(guia) }}
-      onClick={() => onAbrir && onAbrir(guia)}
-      className={`bg-[#1a1a1c] border border-white/[0.07] rounded-lg p-2.5 cursor-pointer hover:border-white/20 transition-all select-none ${compact ? '' : 'mb-2'}`}
+      onClick={() => {
+        if (onSelecionar) {
+          onSelecionar(guia)
+        } else if (onAbrir) {
+          onAbrir(guia)
+        }
+      }}
+      className={`bg-[#1a1a1c] border rounded-lg p-2.5 cursor-pointer transition-all select-none ${
+        selecionada?.id === guia.id
+          ? 'border-violet-500/60 bg-violet-500/10 ring-1 ring-violet-500/40'
+          : 'border-white/[0.07] hover:border-white/20'
+      } ${compact ? '' : 'mb-2'}`}
     >
       <div className="flex items-start justify-between gap-1.5 mb-1.5">
         <p className="text-xs text-[#E8E6E1] leading-snug line-clamp-2 flex-1">
@@ -71,7 +81,7 @@ function GuiaCard({ guia, onDragStart, onAbrir, compact = false }) {
 }
 
 
-function Coluna({ titulo, date, label, isHoje, guias, onDragOver, onDrop, onDragStart, onRemover, onAbrir, meta = 3 }) {
+function Coluna({ titulo, date, label, isHoje, guias, onDragOver, onDrop, onDragStart, onRemover, onAbrir, onMoverSelecionada, meta = 3 }) {
   const gravados = guias.filter(g => g.status === 'gravado' || g.status === 'publicado').length
   const [isDragOver, setIsDragOver] = useState(false)
 
@@ -87,6 +97,7 @@ function Coluna({ titulo, date, label, isHoje, guias, onDragOver, onDrop, onDrag
       onDragOver={e => { e.preventDefault(); setIsDragOver(true); onDragOver(e) }}
       onDragLeave={() => setIsDragOver(false)}
       onDrop={e => { setIsDragOver(false); onDrop(e, date) }}
+      onClick={() => onMoverSelecionada && onMoverSelecionada(date)}
     >
       {/* Header */}
       <div className={`px-3 py-2.5 border-b ${isHoje ? 'border-violet-500/30' : 'border-white/[0.06]'}`}>
@@ -142,6 +153,7 @@ export default function Planner() {
   const [fila, setFila] = useState([])
   const [loading, setLoading] = useState(true)
   const [dragging, setDragging] = useState(null)
+  const [selecionada, setSelecionada] = useState(null) // para mobile: toque para selecionar
   const [guiaAberta, setGuiaAberta] = useState(null)
   const [salvando, setSalvando] = useState(false)
   const [montando, setMontando] = useState(false)
@@ -227,6 +239,12 @@ export default function Planner() {
 
     await carregar(getDiasSemana(semanaOffset))
     setMontando(false)
+  }
+
+  const moverSelecionada = async (date) => {
+    if (!selecionada) return
+    await handleDrop(new Event('drop'), date)
+    setSelecionada(null)
   }
 
   const handleDragStart = (guia) => setDragging(guia)
@@ -376,12 +394,30 @@ export default function Planner() {
               </div>
             )}
             {filaMostrada.map(guia => (
-              <GuiaCard key={guia.id} guia={guia} onDragStart={handleDragStart} onAbrir={setGuiaAberta} compact />
+              <GuiaCard key={guia.id} guia={guia} onDragStart={handleDragStart}
+                onAbrir={selecionada ? null : setGuiaAberta}
+                onSelecionar={g => setSelecionada(prev => prev?.id === g.id ? null : g)}
+                selecionada={selecionada}
+                compact />
             ))}
           </div>
         </div>
 
-        {/* Kanban */}
+        {/* Banner guia selecionada */}
+      {selecionada && (
+        <div className="absolute bottom-20 left-4 right-4 z-20 bg-violet-500/20 border border-violet-500/40 rounded-xl p-3 flex items-center justify-between">
+          <div>
+            <p className="text-xs text-violet-300 font-medium">Guia selecionada</p>
+            <p className="text-[10px] text-violet-300/70 line-clamp-1">{selecionada.titulo || selecionada.tensao_texto}</p>
+          </div>
+          <div className="flex gap-2">
+            <span className="text-[10px] text-violet-300/60">Toque no dia →</span>
+            <button onClick={() => setSelecionada(null)} className="text-violet-300/60 hover:text-violet-300 text-sm">✕</button>
+          </div>
+        </div>
+      )}
+
+      {/* Kanban */}
         <div className="flex-1 overflow-x-auto p-4">
           <div className="flex gap-3 h-full" style={{ minWidth: `${dias.length * 212}px` }}>
             {dias.map(dia => (
@@ -396,7 +432,8 @@ export default function Planner() {
                 onDragOver={e => e.preventDefault()}
                 onDrop={handleDrop}
                 onRemover={handleRemover}
-                onAbrir={setGuiaAberta}
+                onAbrir={selecionada ? null : setGuiaAberta}
+                onMoverSelecionada={selecionada ? moverSelecionada : null}
                 meta={3}
               />
             ))}
