@@ -45,11 +45,10 @@ function Badge({ label, className }) {
 
 function GuiaModal({ guia, onClose, onDelete, onRecriar }) {
   const [deletando, setDeletando] = useState(false)
-  const [estiloRoteiro, setEstiloRoteiro] = useState('corrido')
   const [roteiro, setRoteiro] = useState(guia.roteiro_video || '')
-  const [copiado, setCopiado] = useState(false)
   const [gerandoRoteiro, setGerandoRoteiro] = useState(false)
-  useEffect(() => { setRoteiro(estiloRoteiro === 'cortes' ? (guia.roteiro_cortes || '') : (guia.roteiro_video || '')) }, [estiloRoteiro])
+  const [estiloRoteiro, setEstiloRoteiro] = useState('direto')
+  const [copiado, setCopiado] = useState(false)
   const isProfundo = !!guia.o_que_isso_realmente_quer_dizer || !!guia.subtexto_escondido
 
   const handleDelete = async () => {
@@ -370,14 +369,17 @@ function GuiaModal({ guia, onClose, onDelete, onRecriar }) {
             <div className="flex justify-between items-center mb-3">
               <div className="text-[10px] uppercase text-white/30">🎙️ ROTEIRO PARA VÍDEO</div>
               <div className="flex gap-2 items-center">
-                <div className="flex gap-1">
-                  {[{id:'corrido',label:'🎙️ Corrido'},{id:'cortes',label:'✂️ Cortes'}].map(({id,label}) => (
-                    <button key={id} onClick={() => setEstiloRoteiro(id)} disabled={gerandoRoteiro}
-                      className={`text-xs px-2.5 py-1 rounded transition border ${estiloRoteiro===id?'bg-white/15 border-white/25 text-white/70':'bg-white/[0.04] border-white/[0.07] text-white/30 hover:bg-white/[0.08]'}`}>
-                      {label}
-                    </button>
-                  ))}
-                </div>
+                <select
+                  value={estiloRoteiro}
+                  onChange={(e) => setEstiloRoteiro(e.target.value)}
+                  className="text-xs bg-white/10 border border-white/[0.06] rounded px-2 py-1"
+                  disabled={gerandoRoteiro}
+                >
+                  <option value="direto">🎙️ Direto</option>
+                  <option value="confronto">⚡ Confronto</option>
+                  <option value="calmo">🧘 Calmo</option>
+                  <option value="tecnico">📊 Técnico</option>
+                </select>
                 <button
                   onClick={gerarRoteiro}
                   disabled={gerandoRoteiro}
@@ -639,13 +641,21 @@ export default function Roteiros() {
 
   const guiasFiltradas = guias
     .filter(guia => {
+      // Filtro de público
       if (filtroPublico && guia.publico_alvo !== filtroPublico) return false
+      // Filtro de status
       if (filtroStatus && guia.status !== filtroStatus) return false
+      // Filtro de busca — aplica em cima dos filtros anteriores
       if (busca) {
         const termo = busca.toLowerCase()
-        return (guia.titulo?.toLowerCase().includes(termo) ||
-                guia.tensao_texto?.toLowerCase().includes(termo) ||
-                guia.linha_de_raciocinio?.toLowerCase().includes(termo))
+        const campos = [
+          guia.titulo,
+          guia.tensao_texto,
+          guia.linha_de_raciocinio,
+          guia.alma_do_conteudo,
+          guia.gancho,
+        ]
+        return campos.some(c => c?.toLowerCase().includes(termo))
       }
       return true
     })
