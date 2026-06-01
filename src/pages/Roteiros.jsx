@@ -640,6 +640,8 @@ export default function Roteiros() {
         potencial_viral: g.potencial_viral || 5,
         emocao: g.emocao,
         narrativa: g.narrativa,
+        status: g.status || 'pendente',
+        publico_alvo: g.publico_alvo || 'corretor',
         created_at: g.created_at || new Date(0).toISOString(),
       })),
       ...(guiasProfundos || []).map(p => ({
@@ -712,7 +714,10 @@ export default function Roteiros() {
   const guiasFiltradas = guias
     .filter(guia => {
       if (filtroPublico && guia.publico_alvo !== filtroPublico) return false
-      if (filtroStatus && guia.status !== filtroStatus) return false
+      if (filtroStatus) {
+        const statusGuia = guia.status || 'pendente'
+        if (statusGuia !== filtroStatus) return false
+      }
       if (busca) {
         const termo = busca.toLowerCase()
         return [guia.titulo, guia.tensao_texto, guia.alma_do_conteudo, guia.gancho]
