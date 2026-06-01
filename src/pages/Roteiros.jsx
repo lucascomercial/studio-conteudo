@@ -393,6 +393,18 @@ function GuiaModal({ guia, onClose, onDelete, onRecriar }) {
                     {copiado ? '✓ Copiado!' : '📋 Copiar'}
                   </button>
                 )}
+                {roteiro && (
+                  <button
+                    onClick={async () => {
+                      await supabase.from('guias_profundas').update({ roteiro_aprovado: true }).eq('id', guia.id)
+                      guia.roteiro_aprovado = true
+                    }}
+                    disabled={guia.roteiro_aprovado}
+                    className={`text-xs px-3 py-1 rounded transition ${guia.roteiro_aprovado ? 'bg-emerald-500/20 text-emerald-400 cursor-default' : 'bg-white/[0.06] hover:bg-white/[0.12] text-white/40'}`}
+                  >
+                    {guia.roteiro_aprovado ? '✓ Aprovado' : '👍 Aprovar'}
+                  </button>
+                )}
               </div>
             </div>
             {roteiro ? (

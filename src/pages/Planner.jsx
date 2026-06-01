@@ -59,11 +59,12 @@ function GuiaCard({ guia, onDragStart, onAbrir, compact = false }) {
           <span className="text-[10px]">{tom}</span>
         </div>
       </div>
-      <div className="flex items-center gap-1.5">
+      <div className="flex items-center gap-1.5 flex-wrap">
         {guia.roteiro_video && <span className="text-[9px] text-white/30 bg-white/[0.05] px-1.5 py-0.5 rounded">corrido</span>}
         {guia.roteiro_cortes && <span className="text-[9px] text-white/30 bg-white/[0.05] px-1.5 py-0.5 rounded">cortes</span>}
-        {status === 'gravado' && <span className="text-[9px] text-amber-400 ml-auto">🎬</span>}
-        {status === 'publicado' && <span className="text-[9px] text-emerald-400 ml-auto">📱</span>}
+        {guia.roteiro_aprovado && <span className="text-[9px] text-emerald-400 bg-emerald-500/10 px-1.5 py-0.5 rounded">✓ aprovado</span>}
+        {status === 'gravado' && <span className="text-[9px] text-amber-400 ml-auto">🎬 gravado</span>}
+        {status === 'publicado' && <span className="text-[9px] text-emerald-400 ml-auto">📱 publicado</span>}
       </div>
     </div>
   )
@@ -143,6 +144,7 @@ export default function Planner() {
   const [dragging, setDragging] = useState(null)
   const [guiaAberta, setGuiaAberta] = useState(null)
   const [salvando, setSalvando] = useState(false)
+  const [montando, setMontando] = useState(false)
   const [filtroPublico, setFiltroPublico] = useState('todos')
 
   useEffect(() => {
@@ -160,7 +162,7 @@ export default function Planner() {
     // Guias programadas para essa semana
     const { data: programadas } = await supabase
       .from('guias_profundas')
-      .select('id, titulo, tensao_texto, publico_alvo, tom_roteiro, status, roteiro_video, roteiro_cortes, dia_gravacao, ordem_dia, potencial_viral')
+      .select('id, titulo, tensao_texto, publico_alvo, tom_roteiro, status, roteiro_video, roteiro_cortes, roteiro_aprovado, dia_gravacao, ordem_dia, potencial_viral')
       .gte('dia_gravacao', inicio)
       .lte('dia_gravacao', fim)
       .order('ordem_dia', { ascending: true })
@@ -168,7 +170,7 @@ export default function Planner() {
     // Guias na fila (separadas sem dia)
     const { data: naFila } = await supabase
       .from('guias_profundas')
-      .select('id, titulo, tensao_texto, publico_alvo, tom_roteiro, status, roteiro_video, roteiro_cortes, potencial_viral')
+      .select('id, titulo, tensao_texto, publico_alvo, tom_roteiro, status, roteiro_video, roteiro_cortes, roteiro_aprovado, potencial_viral')
       .eq('status', 'separado')
       .is('dia_gravacao', null)
       .order('potencial_viral', { ascending: false })
@@ -186,6 +188,45 @@ export default function Planner() {
     setGuiasPorDia(porDia)
     setFila(naFila || [])
     setLoading(false)
+  }
+
+  const montarHoje = async () => {
+    const hoje = getDiasSemana(semanaOffset).find(d => d.isHoje)?.date
+    if (!hoje) return
+    setMontando(true)
+
+    // Pega guias com roteiro aprovado da fila
+    const comRoteiro = fila.filter(g => g.roteiro_aprovado)
+    const semRoteiro = fila.filter(g => !g.roteiro_aprovado)
+    const fonte = comRoteiro.length > 0 ? comRoteiro : semRoteiro
+
+    const corretores = fonte.filter(g => g.publico_alvo !== 'proprietario')
+    const proprietarios = fonte.filter(g => g.publico_alvo === 'proprietario')
+
+    const selecionadas = [
+      ...corretores.slice(0, 2),
+      ...proprietarios.slice(0, 1),
+    ].slice(0, 3)
+
+    if (selecionadas.length === 0) {
+      alert('Nenhuma guia na fila para montar a grade.')
+      setMontando(false)
+      return
+    }
+
+    if (proprietarios.length === 0) {
+      alert('⚠️ Sem guias de proprietário na fila. Importe mais conteúdo em Transcrições.')
+    }
+
+    for (let i = 0; i < selecionadas.length; i++) {
+      const g = selecionadas[i]
+      await supabase.from('guias_profundas')
+        .update({ dia_gravacao: hoje, ordem_dia: i, status: 'separado' })
+        .eq('id', g.id)
+    }
+
+    await carregar(getDiasSemana(semanaOffset))
+    setMontando(false)
   }
 
   const handleDragStart = (guia) => setDragging(guia)
@@ -269,14 +310,24 @@ export default function Planner() {
         </div>
         <div className="flex items-center gap-2">
           {salvando && <SpinIcon />}
-          <button onClick={() => setSemanaOffset(0)}
-            className={`text-xs px-2.5 py-1.5 rounded-lg border transition ${semanaOffset === 0 ? 'bg-violet-500/20 border-violet-500/30 text-violet-300' : 'border-white/[0.06] text-white/30 hover:bg-white/[0.06]'}`}>
-            Esta semana
+          <button onClick={montarHoje} disabled={montando}
+            className="text-xs px-3 py-1.5 rounded-lg border border-violet-500/30 bg-violet-500/15 text-violet-300 hover:bg-violet-500/25 transition disabled:opacity-40">
+            {montando ? '⏳' : '⚡'} Montar hoje
           </button>
-          <button onClick={() => setSemanaOffset(1)}
-            className={`text-xs px-2.5 py-1.5 rounded-lg border transition ${semanaOffset === 1 ? 'bg-violet-500/20 border-violet-500/30 text-violet-300' : 'border-white/[0.06] text-white/30 hover:bg-white/[0.06]'}`}>
-            Próxima →
-          </button>
+          <div className="flex items-center gap-1.5">
+            <button onClick={() => setSemanaOffset(s => s - 1)}
+              className="text-xs px-2 py-1.5 rounded-lg border border-white/[0.06] text-white/30 hover:bg-white/[0.06] transition">
+              ←
+            </button>
+            <button onClick={() => setSemanaOffset(0)}
+              className={`text-xs px-2.5 py-1.5 rounded-lg border transition ${semanaOffset === 0 ? 'bg-violet-500/20 border-violet-500/30 text-violet-300' : 'border-white/[0.06] text-white/30 hover:bg-white/[0.06]'}`}>
+              {semanaOffset === 0 ? 'Esta semana' : semanaOffset < 0 ? `${Math.abs(semanaOffset)}s atrás` : `+${semanaOffset}s`}
+            </button>
+            <button onClick={() => setSemanaOffset(s => s + 1)}
+              className="text-xs px-2 py-1.5 rounded-lg border border-white/[0.06] text-white/30 hover:bg-white/[0.06] transition">
+              →
+            </button>
+          </div>
         </div>
       </div>
 
@@ -285,8 +336,15 @@ export default function Planner() {
         {/* Fila lateral */}
         <div className="w-[220px] shrink-0 border-r border-white/[0.06] flex flex-col">
           <div className="px-3 py-2.5 border-b border-white/[0.06]">
-            <div className="text-xs text-white/50 font-medium mb-2">
+            <div className="text-xs text-white/50 font-medium mb-1.5">
               📋 Fila ({fila.length})
+            </div>
+            <div className="flex gap-2 mb-2 text-[10px]">
+              <span className="text-violet-400">👔 {fila.filter(g => g.publico_alvo !== 'proprietario').length}</span>
+              <span className={fila.filter(g => g.publico_alvo === 'proprietario').length < 3 ? 'text-amber-400' : 'text-teal-400'}>
+                🏠 {fila.filter(g => g.publico_alvo === 'proprietario').length}
+                {fila.filter(g => g.publico_alvo === 'proprietario').length < 3 && ' ⚠️'}
+              </span>
             </div>
             <div className="flex gap-1">
               {[

@@ -54,24 +54,7 @@ export default function GravacaoRapida() {
       .neq('status', 'publicado')
       .order('ordem_dia', { ascending: true })
 
-    // Se não tiver nada programado para hoje, mostra as separadas sem data
-    if (programadas && programadas.length > 0) {
-      setGuias(programadas)
-    } else {
-      const { data: separadas } = await supabase
-        .from('guias_profundas')
-        .select(`id, titulo, tensao_texto, gancho, sugestoes_de_gancho,
-                 alma_do_conteudo, como_isso_vira_conteudo_de_camera,
-                 micro_cenas, frases_fortes, cta, roteiro_video, roteiro_cortes,
-                 tira_teleprompter, roteiro_aprovado, tom_roteiro,
-                 energia_ideal, publico_alvo, emocao, potencial_viral,
-                 status, tipo_gancho, tipo_verdade, dia_gravacao, ordem_dia`)
-        .eq('status', 'separado')
-        .is('dia_gravacao', null)
-        .order('potencial_viral', { ascending: false })
-        .limit(10)
-      setGuias(separadas || [])
-    }
+    setGuias(programadas || [])
     setLoading(false)
   }
 
