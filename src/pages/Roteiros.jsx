@@ -47,8 +47,9 @@ function GuiaModal({ guia, onClose, onDelete, onRecriar }) {
   const [deletando, setDeletando] = useState(false)
   const [estiloRoteiro, setEstiloRoteiro] = useState('corrido')
   const [roteiro, setRoteiro] = useState(guia.roteiro_video || '')
-  useEffect(() => { setRoteiro(estiloRoteiro === 'cortes' ? (guia.roteiro_cortes || '') : (guia.roteiro_video || '')) }, [estiloRoteiro])
+  const [copiado, setCopiado] = useState(false)
   const [gerandoRoteiro, setGerandoRoteiro] = useState(false)
+  useEffect(() => { setRoteiro(estiloRoteiro === 'cortes' ? (guia.roteiro_cortes || '') : (guia.roteiro_video || '')) }, [estiloRoteiro])
   const isProfundo = !!guia.o_que_isso_realmente_quer_dizer || !!guia.subtexto_escondido
 
   const handleDelete = async () => {
