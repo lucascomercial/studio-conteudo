@@ -43,7 +43,7 @@ function Badge({ label, className }) {
   return <span className={`inline-flex items-center px-2 py-0.5 rounded text-[10px] font-medium ${className}`}>{label}</span>
 }
 
-function GuiaModal({ guia, onClose, onDelete, onRecriar }) {
+function GuiaModal({ guia, onClose, onDelete, onRecriar, onStatusChange }) {
   const [deletando, setDeletando] = useState(false)
   const [roteiro, setRoteiro] = useState(guia.roteiro_video || '')
   const [gerandoRoteiro, setGerandoRoteiro] = useState(false)
@@ -56,10 +56,7 @@ function GuiaModal({ guia, onClose, onDelete, onRecriar }) {
   const isProfundo = !!guia.o_que_isso_realmente_quer_dizer || !!guia.subtexto_escondido
 
   const iniciarEdicao = () => {
-    const texto = estiloRoteiro === 'cortes'
-      ? (guia.roteiro_cortes || '')
-      : (guia.roteiro_video || '')
-    setTextoEditado(texto)
+    setTextoEditado(estiloRoteiro === 'cortes' ? (guia.roteiro_cortes || '') : (guia.roteiro_video || ''))
     setEditando(true)
   }
 
@@ -67,9 +64,8 @@ function GuiaModal({ guia, onClose, onDelete, onRecriar }) {
     if (!textoEditado.trim()) return
     setSalvandoEdicao(true)
     const campo = estiloRoteiro === 'cortes' ? 'roteiro_cortes' : 'roteiro_video'
-    await supabase.from(guia.tipo === 'profundo' ? 'guias_profundas' : 'guias_conteudo')
-      .update({ [campo]: textoEditado })
-      .eq('id', guia.id)
+    const tabela = guia.tipo === 'profundo' ? 'guias_profundas' : 'guias_conteudo'
+    await supabase.from(tabela).update({ [campo]: textoEditado }).eq('id', guia.id)
     guia[campo] = textoEditado
     setRoteiro(textoEditado)
     setSalvandoEdicao(false)
@@ -417,18 +413,6 @@ function GuiaModal({ guia, onClose, onDelete, onRecriar }) {
                     {copiado ? '✓ Copiado!' : '📋 Copiar'}
                   </button>
                 )}
-                {roteiro && (
-                  <button
-                    onClick={async () => {
-                      await supabase.from('guias_profundas').update({ roteiro_aprovado: true }).eq('id', guia.id)
-                      guia.roteiro_aprovado = true
-                    }}
-                    disabled={guia.roteiro_aprovado}
-                    className={`text-xs px-3 py-1 rounded transition ${guia.roteiro_aprovado ? 'bg-emerald-500/20 text-emerald-400 cursor-default' : 'bg-white/[0.06] hover:bg-white/[0.12] text-white/40'}`}
-                  >
-                    {guia.roteiro_aprovado ? '✓ Aprovado' : '👍 Aprovar'}
-                  </button>
-                )}
               </div>
             </div>
             {roteiro ? (
@@ -443,24 +427,35 @@ function GuiaModal({ guia, onClose, onDelete, onRecriar }) {
           </div>
         </div>
 
-        <div className="p-5 border-t border-white/[0.06] flex justify-between gap-3">
-          <button
-            onClick={handleDelete}
-            disabled={deletando}
-            className="px-4 py-2 bg-red-500/20 hover:bg-red-500/30 rounded-lg text-sm text-red-400 transition disabled:opacity-40"
-          >
-            {deletando ? 'Excluindo...' : '🗑️ Excluir guia'}
-          </button>
+        <div className="p-4 border-t border-white/[0.06] space-y-2">
+          <div className="flex gap-1.5">
+            {[
+              { s: 'pendente',  label: '📝 Pendente',  cls: guia.status === 'pendente'  ? 'bg-white/15 text-white/70 ring-1 ring-white/25' : 'bg-white/[0.04] text-white/25 hover:bg-white/[0.08]' },
+              { s: 'separado',  label: '🔵 Separado',  cls: guia.status === 'separado'  ? 'bg-blue-500/25 text-blue-300 ring-1 ring-blue-500/40' : 'bg-white/[0.04] text-white/25 hover:bg-white/[0.08]' },
+              { s: 'gravado',   label: '🎬 Gravado',   cls: guia.status === 'gravado'   ? 'bg-amber-500/25 text-amber-300 ring-1 ring-amber-500/40' : 'bg-white/[0.04] text-white/25 hover:bg-white/[0.08]' },
+              { s: 'publicado', label: '📱 Publicado', cls: guia.status === 'publicado' ? 'bg-emerald-500/25 text-emerald-300 ring-1 ring-emerald-500/40' : 'bg-white/[0.04] text-white/25 hover:bg-white/[0.08]' },
+            ].map(({ s, label, cls }) => (
+              <button key={s} onClick={() => onStatusChange?.(guia.id, s, guia.tipo)}
+                className={`flex-1 py-2 rounded-lg text-xs font-medium transition-all ${cls}`}>
+                {label}
+              </button>
+            ))}
+          </div>
           <div className="flex gap-2">
+            <button onClick={handleDelete} disabled={deletando}
+              className="px-3 py-2 bg-red-500/15 hover:bg-red-500/25 rounded-lg text-xs text-red-400 transition disabled:opacity-40">
+              {deletando ? '...' : '🗑️'}
+            </button>
             {onRecriar && (
-              <button
-                onClick={() => onRecriar(guia)}
-                className="px-4 py-2 bg-violet-500/20 hover:bg-violet-500/30 rounded-lg text-sm text-violet-400 transition"
-              >
-                🔄 Recriar guia
+              <button onClick={() => onRecriar(guia)}
+                className="px-3 py-2 bg-violet-500/15 hover:bg-violet-500/25 rounded-lg text-xs text-violet-400 transition">
+                🔄 Recriar
               </button>
             )}
-            <button onClick={onClose} className="px-4 py-2 bg-white/10 rounded-lg text-sm">Fechar</button>
+            <button onClick={onClose}
+              className="flex-1 py-2 bg-white/[0.06] hover:bg-white/[0.1] rounded-lg text-xs text-white/40 transition">
+              Fechar
+            </button>
           </div>
         </div>
       </motion.div>
@@ -585,6 +580,14 @@ export default function Roteiros() {
     }
   }
 
+  const atualizarStatus = async (guiaId, novoStatus, tipo) => {
+    const tabela = tipo === 'profundo' ? 'guias_profundas' : 'guias_conteudo'
+    const { error } = await supabase.from(tabela).update({ status: novoStatus }).eq('id', guiaId)
+    if (error) { console.error(error); return }
+    setGuias(prev => prev.map(g => g.id === guiaId ? { ...g, status: novoStatus } : g))
+    if (modalGuia?.id === guiaId) setModalGuia(prev => ({ ...prev, status: novoStatus }))
+  }
+
   async function carregarDados() {
     setLoading(true)
 
@@ -655,6 +658,8 @@ export default function Roteiros() {
         sinais_reais_de_desconfianca: p.sinais_reais_de_desconfianca || [],
         como_isso_vira_conteudo_de_camera: p.como_isso_vira_conteudo_de_camera,
         roteiro_video: p.roteiro_video || '',
+        roteiro_cortes: p.roteiro_cortes || '',
+        roteiro_aprovado: p.roteiro_aprovado || false,
         tipo: 'profundo',
         created_at: p.created_at || new Date(0).toISOString(),
       })),
@@ -675,21 +680,12 @@ export default function Roteiros() {
 
   const guiasFiltradas = guias
     .filter(guia => {
-      // Filtro de público
       if (filtroPublico && guia.publico_alvo !== filtroPublico) return false
-      // Filtro de status
       if (filtroStatus && guia.status !== filtroStatus) return false
-      // Filtro de busca — aplica em cima dos filtros anteriores
       if (busca) {
         const termo = busca.toLowerCase()
-        const campos = [
-          guia.titulo,
-          guia.tensao_texto,
-          guia.linha_de_raciocinio,
-          guia.alma_do_conteudo,
-          guia.gancho,
-        ]
-        return campos.some(c => c?.toLowerCase().includes(termo))
+        return [guia.titulo, guia.tensao_texto, guia.alma_do_conteudo, guia.gancho]
+          .some(c => c?.toLowerCase().includes(termo))
       }
       return true
     })
@@ -750,8 +746,9 @@ export default function Roteiros() {
               <option value="investidor">📈 Investidor</option>
             </select>
             <select value={filtroStatus} onChange={e => setFiltroStatus(e.target.value)} className="bg-white/[0.04] border border-white/[0.06] rounded-lg px-2.5 py-1.5 text-xs text-white/50">
-              <option value="">📝 Todos status</option>
+              <option value="">Todos status</option>
               <option value="pendente">📝 Pendente</option>
+              <option value="separado">🔵 Separado</option>
               <option value="gravado">🎬 Gravado</option>
               <option value="publicado">📱 Publicado</option>
             </select>
@@ -788,10 +785,31 @@ export default function Roteiros() {
                     </div>
                     <h3 className="text-sm font-medium text-[#E8E6E1] line-clamp-2">{guia.titulo || guia.tensao_texto}</h3>
                     {guia.gancho && <p className="text-xs text-white/40 mt-1 line-clamp-2">"{guia.gancho}"</p>}
-                    <div className="flex items-center justify-between mt-3 pt-2 border-t border-white/[0.06]">
-                      <span className={`text-[10px] px-2 py-0.5 rounded-full ${guia.status === 'gravado' ? 'bg-amber-500/20 text-amber-400' : guia.status === 'publicado' ? 'bg-emerald-500/20 text-emerald-400' : 'bg-white/10 text-white/30'}`}>
-                        {guia.status === 'gravado' ? '🎬 Gravado' : guia.status === 'publicado' ? '📱 Publicado' : '📝 Pendente'}
+                    <div className="flex items-center justify-between mt-3 pt-2 border-t border-white/[0.06]" onClick={e => e.stopPropagation()}>
+                      <span className={`text-[10px] px-2 py-0.5 rounded-full ${
+                        guia.status === 'separado'  ? 'bg-blue-500/20 text-blue-400' :
+                        guia.status === 'gravado'   ? 'bg-amber-500/20 text-amber-400' :
+                        guia.status === 'publicado' ? 'bg-emerald-500/20 text-emerald-400' :
+                        'bg-white/10 text-white/30'
+                      }`}>
+                        {guia.status === 'separado' ? '🔵 Separado' : guia.status === 'gravado' ? '🎬 Gravado' : guia.status === 'publicado' ? '📱 Publicado' : '📝 Pendente'}
                       </span>
+                      {guia.status === 'pendente' && (
+                        <button
+                          onClick={() => atualizarStatus(guia.id, 'separado', guia.tipo)}
+                          className="text-[10px] px-2.5 py-1 bg-blue-500/20 hover:bg-blue-500/30 text-blue-400 rounded-lg transition font-medium"
+                        >
+                          + Separar
+                        </button>
+                      )}
+                      {guia.status === 'separado' && (
+                        <button
+                          onClick={() => atualizarStatus(guia.id, 'pendente', guia.tipo)}
+                          className="text-[10px] px-2.5 py-1 bg-white/[0.06] hover:bg-white/10 text-white/30 rounded-lg transition"
+                        >
+                          ↩ Desfazer
+                        </button>
+                      )}
                     </div>
                   </div>
                 ))}
@@ -835,6 +853,7 @@ export default function Roteiros() {
             onClose={() => setModalGuia(null)}
             onDelete={handleDeleteGuide}
             onRecriar={recriarGuia}
+            onStatusChange={atualizarStatus}
           />
         )}
       </AnimatePresence>
