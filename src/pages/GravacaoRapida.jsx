@@ -41,7 +41,8 @@ export default function GravacaoRapida() {
     setIndex(0)
     setVerRoteiro(false)
 
-    const { data } = await supabase
+    // Busca guias programadas para hoje
+    const { data: programadas } = await supabase
       .from('guias_profundas')
       .select(`id, titulo, tensao_texto, gancho, sugestoes_de_gancho,
                alma_do_conteudo, como_isso_vira_conteudo_de_camera,
@@ -53,7 +54,24 @@ export default function GravacaoRapida() {
       .neq('status', 'publicado')
       .order('ordem_dia', { ascending: true })
 
-    setGuias(data || [])
+    // Se não tiver nada programado para hoje, mostra as separadas sem data
+    if (programadas && programadas.length > 0) {
+      setGuias(programadas)
+    } else {
+      const { data: separadas } = await supabase
+        .from('guias_profundas')
+        .select(`id, titulo, tensao_texto, gancho, sugestoes_de_gancho,
+                 alma_do_conteudo, como_isso_vira_conteudo_de_camera,
+                 micro_cenas, frases_fortes, cta, roteiro_video, roteiro_cortes,
+                 tira_teleprompter, roteiro_aprovado, tom_roteiro,
+                 energia_ideal, publico_alvo, emocao, potencial_viral,
+                 status, tipo_gancho, tipo_verdade, dia_gravacao, ordem_dia`)
+        .eq('status', 'separado')
+        .is('dia_gravacao', null)
+        .order('potencial_viral', { ascending: false })
+        .limit(10)
+      setGuias(separadas || [])
+    }
     setLoading(false)
   }
 
@@ -171,7 +189,8 @@ export default function GravacaoRapida() {
     <div className="flex flex-col items-center justify-center h-screen gap-4 px-6 text-center">
       <div className="text-4xl opacity-20">🎬</div>
       <p className="text-white/40 text-sm">Nenhum vídeo programado para hoje</p>
-      <p className="text-white/20 text-xs">Abra o Planner e arraste guias para hoje</p>
+      <p className="text-white/20 text-xs mt-1">Abra o Planner e arraste guias para hoje</p>
+      <p className="text-white/15 text-xs mt-0.5">ou separe guias em Roteiros</p>
       <a href="/planner" className="text-xs text-violet-400 hover:text-violet-300 transition mt-2">
         Ir para o Planner →
       </a>
