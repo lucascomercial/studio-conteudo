@@ -47,6 +47,9 @@ export default function Transcricoes() {
   const [guiasAbertos, setGuiasAbertos] = useState({})
   const [tomPorTensao, setTomPorTensao] = useState({})  // guarda tom E publico por key
   const [abaAtiva, setAbaAtiva] = useState('manual')
+  const [filtroPublico, setFiltroPublico] = useState('') // '' | 'corretor' | 'proprietario'
+  const [filtroBusca, setFiltroBusca] = useState('')
+  const [filtroStatus, setFiltroStatus] = useState('') // '' | 'pendente' | 'processado'
   const [urlsLote, setUrlsLote] = useState('')
   const [publicoLote, setPublicoLote] = useState('corretor')
   const [importandoLote, setImportandoLote] = useState(false)
@@ -255,11 +258,92 @@ export default function Transcricoes() {
     finally { setGerandoTensao(prev => ({ ...prev, [key]: false })) }
   }
 
+  // Filtra transcrições e tensões dentro delas
+  const transcricoesFiltradas = transcricoes.filter(trans => {
+    // Filtro de público — verifica a transcrição E as tensões dentro dela
+    if (filtroPublico) {
+      const transPublico = trans.publico_sugerido === filtroPublico
+      const tensaoPublico = trans.temas_brutos?.some(t =>
+        (t.publico_sugerido || 'corretor') === filtroPublico
+      )
+      if (!transPublico && !tensaoPublico) return false
+    }
+    // Filtro de status
+    if (filtroStatus && trans.status !== filtroStatus) return false
+    // Filtro de busca — título + tensões
+    if (filtroBusca) {
+      const termo = filtroBusca.toLowerCase()
+      const noTitulo = trans.titulo?.toLowerCase().includes(termo)
+      const naTensao = trans.temas_brutos?.some(t =>
+        t.tensao?.toLowerCase().includes(termo) ||
+        t.tema?.toLowerCase().includes(termo)
+      )
+      if (!noTitulo && !naTensao) return false
+    }
+    return true
+  })
+
+  // Para cada transcrição filtrada, filtra também as tensões internas
+  const tensoesFiltradas = (trans) => {
+    if (!trans.temas_brutos) return []
+    if (!filtroPublico) return trans.temas_brutos
+    return trans.temas_brutos.filter(t =>
+      (t.publico_sugerido || 'corretor') === filtroPublico
+    )
+  }
+
   return (
     <div className="flex flex-col h-full">
-      <div className="border-b border-white/[0.06] px-6 py-4">
-        <h1 className="text-sm font-medium text-[#E8E6E1]">📚 Biblioteca de Transcrições</h1>
-        <p className="text-xs text-white/30 mt-0.5">{transcricoes.length} transcrições salvas</p>
+      <div className="border-b border-white/[0.06] px-4 py-3">
+        <div className="flex items-center justify-between gap-3 flex-wrap">
+          <div>
+            <h1 className="text-sm font-medium text-[#E8E6E1]">📚 Transcrições</h1>
+            <p className="text-[10px] text-white/30 mt-0.5">
+              {transcricoesFiltradas.length}/{transcricoes.length} transcrições
+            </p>
+          </div>
+          <div className="flex gap-2 flex-wrap">
+            {/* Busca */}
+            <input
+              value={filtroBusca}
+              onChange={e => setFiltroBusca(e.target.value)}
+              placeholder="Buscar..."
+              className="bg-white/[0.04] border border-white/[0.06] rounded-lg px-3 py-1.5 text-xs text-[#E8E6E1] placeholder-white/20 w-32"
+            />
+            {/* Público */}
+            <div className="flex gap-1">
+              {[
+                { id: '', label: 'Todos' },
+                { id: 'corretor', label: '👔' },
+                { id: 'proprietario', label: '🏠' },
+              ].map(({ id, label }) => (
+                <button key={id} onClick={() => setFiltroPublico(id)}
+                  className={`text-xs px-2.5 py-1.5 rounded-lg border transition ${
+                    filtroPublico === id
+                      ? 'bg-violet-500/20 border-violet-500/30 text-violet-300'
+                      : 'bg-white/[0.03] border-white/[0.06] text-white/30 hover:bg-white/[0.07]'
+                  }`}>
+                  {label}
+                </button>
+              ))}
+            </div>
+            {/* Status */}
+            <select value={filtroStatus} onChange={e => setFiltroStatus(e.target.value)}
+              className="bg-white/[0.04] border border-white/[0.06] rounded-lg px-2 py-1.5 text-xs text-white/40">
+              <option value="">Todos status</option>
+              <option value="pendente">⏳ Pendente</option>
+              <option value="processado">✅ Processado</option>
+              <option value="sem_tensoes">❌ Sem tensões</option>
+            </select>
+            {/* Limpar */}
+            {(filtroPublico || filtroBusca || filtroStatus) && (
+              <button onClick={() => { setFiltroPublico(''); setFiltroBusca(''); setFiltroStatus('') }}
+                className="text-xs text-white/30 hover:text-white/60 px-2">
+                ✕ Limpar
+              </button>
+            )}
+          </div>
+        </div>
       </div>
 
       <div className="flex-1 overflow-y-auto p-6">
@@ -345,7 +429,7 @@ export default function Transcricoes() {
           <div className="text-center py-12 text-white/30">Nenhuma transcrição salva ainda.</div>
         ) : (
           <div className="space-y-4">
-            {transcricoes.map(trans => (
+            {transcricoesFiltradas.map(trans => (
               <div key={trans.id} className="bg-[#111113] border border-white/[0.06] rounded-xl overflow-hidden">
                 <button
                   onClick={() => setExpandedId(expandedId === trans.id ? null : trans.id)}
@@ -424,10 +508,17 @@ export default function Transcricoes() {
 
                         {trans.temas_brutos?.length > 0 && (
                           <div>
-                            <div className="text-[10px] uppercase text-white/30 mb-2">⚡ Tensões extraídas</div>
+                            <div className="flex items-center justify-between mb-2">
+                              <div className="text-[10px] uppercase text-white/30">
+                                ⚡ Tensões {filtroPublico ? `(${tensoesFiltradas(trans).length} de ${trans.temas_brutos.length})` : `(${trans.temas_brutos.length})`}
+                              </div>
+                            </div>
                             <div className="space-y-3">
-                              {trans.temas_brutos.map((tensao, idx) => {
-                                const key = `${trans.id}_${idx}`
+                              {tensoesFiltradas(trans).map((tensao, idx) => {
+                                const realIdx = trans.temas_brutos.indexOf(tensao)
+                                const idx2 = realIdx >= 0 ? realIdx : idx
+                                const idx2_real = realIdx >= 0 ? realIdx : idx
+                                const key = `${trans.id}_${idx2_real}`
                                 const guia = guiasPorTensao[key]
                                 const gerando = gerandoTensao[key]
                                 const guiaAberto = guiasAbertos[key]
