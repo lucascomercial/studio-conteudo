@@ -49,8 +49,32 @@ function GuiaModal({ guia, onClose, onDelete, onRecriar }) {
   const [gerandoRoteiro, setGerandoRoteiro] = useState(false)
   const [estiloRoteiro, setEstiloRoteiro] = useState('corrido')
   const [copiado, setCopiado] = useState(false)
+  const [editando, setEditando] = useState(false)
+  const [textoEditado, setTextoEditado] = useState('')
+  const [salvandoEdicao, setSalvandoEdicao] = useState(false)
   useEffect(() => { setRoteiro(estiloRoteiro === 'cortes' ? (guia.roteiro_cortes || '') : (guia.roteiro_video || '')) }, [estiloRoteiro])
   const isProfundo = !!guia.o_que_isso_realmente_quer_dizer || !!guia.subtexto_escondido
+
+  const iniciarEdicao = () => {
+    const texto = estiloRoteiro === 'cortes'
+      ? (guia.roteiro_cortes || '')
+      : (guia.roteiro_video || '')
+    setTextoEditado(texto)
+    setEditando(true)
+  }
+
+  const salvarEdicao = async () => {
+    if (!textoEditado.trim()) return
+    setSalvandoEdicao(true)
+    const campo = estiloRoteiro === 'cortes' ? 'roteiro_cortes' : 'roteiro_video'
+    await supabase.from(guia.tipo === 'profundo' ? 'guias_profundas' : 'guias_conteudo')
+      .update({ [campo]: textoEditado })
+      .eq('id', guia.id)
+    guia[campo] = textoEditado
+    setRoteiro(textoEditado)
+    setSalvandoEdicao(false)
+    setEditando(false)
+  }
 
   const handleDelete = async () => {
     if (!confirm(`Tem certeza que deseja excluir o guia "${guia.titulo || guia.tensao_texto}"?`)) return
