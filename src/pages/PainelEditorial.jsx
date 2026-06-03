@@ -35,12 +35,16 @@ export default function PainelEditorial() {
   async function carregarDados() {
     setLoading(true)
 
-    // Busca todas as guias
-    const { data: guias } = await supabase
-      .from('guias_profundas')
-      .select('status, publico_alvo, emocao, tipo_verdade, tipo_gancho, potencial_viral, views_publicado, likes_publicado, created_at, tensao_texto, narrativa')
+    // Busca guias das duas tabelas
+    const [{ data: profundas }, { data: simples }] = await Promise.all([
+      supabase.from('guias_profundas')
+        .select('status, publico_alvo, emocao, tipo_verdade, tipo_gancho, potencial_viral, views_publicado, likes_publicado, created_at, tensao_texto'),
+      supabase.from('guias_conteudo')
+        .select('status, publico_alvo, emocao, tipo_verdade, tipo_gancho, potencial_viral, views_publicado, likes_publicado, created_at, tensao_texto'),
+    ])
 
-    if (!guias) { setLoading(false); return }
+    const guias = [...(profundas || []), ...(simples || [])]
+    if (!guias.length) { setLoading(false); return }
 
     // Processa os dados
     const total        = guias.length
@@ -49,23 +53,24 @@ export default function PainelEditorial() {
     const separadas    = guias.filter(g => g.status === 'separado')
     const pendentes    = guias.filter(g => g.status === 'pendente')
 
-    // Público
+    // Guias em produção = separadas + gravadas + publicadas (excluindo pendentes)
+    const emProducao = guias.filter(g => g.status !== 'pendente')
+
+    // Público — calculado sobre EM PRODUÇÃO (o que você decidiu gravar)
     const porPublico = {
-      corretor:     guias.filter(g => g.publico_alvo === 'corretor').length,
-      proprietario: guias.filter(g => g.publico_alvo === 'proprietario').length,
+      corretor:     emProducao.filter(g => g.publico_alvo === 'corretor').length,
+      proprietario: emProducao.filter(g => g.publico_alvo === 'proprietario').length,
     }
 
-    // Emoções dominantes
+    // Emoções, verdades, aberturas — calculados sobre EM PRODUÇÃO
     const emocoes = {}
-    guias.forEach(g => { if (g.emocao) emocoes[g.emocao] = (emocoes[g.emocao] || 0) + 1 })
+    emProducao.forEach(g => { if (g.emocao) emocoes[g.emocao] = (emocoes[g.emocao] || 0) + 1 })
 
-    // Tipos de verdade
     const verdades = {}
-    guias.forEach(g => { if (g.tipo_verdade) verdades[g.tipo_verdade] = (verdades[g.tipo_verdade] || 0) + 1 })
+    emProducao.forEach(g => { if (g.tipo_verdade) verdades[g.tipo_verdade] = (verdades[g.tipo_verdade] || 0) + 1 })
 
-    // Tipos de abertura
     const aberturas = {}
-    guias.forEach(g => { if (g.tipo_gancho) aberturas[g.tipo_gancho] = (aberturas[g.tipo_gancho] || 0) + 1 })
+    emProducao.forEach(g => { if (g.tipo_gancho) aberturas[g.tipo_gancho] = (aberturas[g.tipo_gancho] || 0) + 1 })
 
     // Performance das publicadas
     const comViews = publicadas.filter(g => (g.views_publicado || 0) > 0)
@@ -79,6 +84,18 @@ export default function PainelEditorial() {
       .sort((a, b) => (b.views_publicado || 0) - (a.views_publicado || 0))
       .slice(0, 5)
 
+    // Lista completa das publicadas para análise de conteúdo
+    const listaPublicadas = publicadas
+      .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
+      .map(g => ({
+        tensao: g.tensao_texto,
+        publico: g.publico_alvo,
+        emocao: g.emocao,
+        verdade: g.tipo_verdade,
+        abertura: g.tipo_gancho,
+        views: g.views_publicado || 0,
+      }))
+
     // DNA esperado (193 vídeos reais)
     const dnaEsperado = {
       constatacao: 41, afirmacao: 38, pergunta: 21,
@@ -89,9 +106,11 @@ export default function PainelEditorial() {
     setDados({
       total, publicadas: publicadas.length, gravadas: gravadas.length,
       separadas: separadas.length, pendentes: pendentes.length,
+      emProducao: emProducao.length,
       porPublico, emocoes, verdades, aberturas,
       mediaViews, totalViews, totalLikes,
       topTensoes, comViews: comViews.length,
+      listaPublicadas,
       dnaEsperado,
     })
     setLoading(false)
@@ -103,29 +122,36 @@ export default function PainelEditorial() {
 
     const contexto = `
 Sou Lucas Marques, gestor de corretores em Brasilia.
-Aqui esta o resumo do meu conteudo publicado no Instagram:
+Aqui esta o resumo do meu conteudo:
 
-FUNIL:
-- Total de guias: ${dados.total}
-- Publicadas: ${dados.publicadas} | Gravadas: ${dados.gravadas} | Separadas: ${dados.separadas} | Pendentes: ${dados.pendentes}
+FUNIL (total: ${dados.total} guias):
+- Pendentes: ${dados.pendentes} (ainda nao separadas para gravar)
+- Separadas: ${dados.separadas} (prontas para gravar)
+- Gravadas: ${dados.gravadas}
+- Publicadas: ${dados.publicadas}
 
-PUBLICO:
-- Corretor: ${dados.porPublico.corretor} (${dados.total > 0 ? Math.round(dados.porPublico.corretor/dados.total*100) : 0}%)
-- Proprietario: ${dados.porPublico.proprietario} (${dados.total > 0 ? Math.round(dados.porPublico.proprietario/dados.total*100) : 0}%)
+METRICAS ABAIXO sao calculadas sobre as guias EM PRODUCAO (${dados.emProducao} guias — separadas + gravadas + publicadas):
 
-TIPOS DE VERDADE USADOS:
-${Object.entries(dados.verdades).map(([k,v]) => `- ${k}: ${v}`).join('\n') || 'Nenhum registrado ainda'}
+PUBLICO (em producao):
+- Corretor: ${dados.porPublico.corretor} (${dados.emProducao > 0 ? Math.round(dados.porPublico.corretor/dados.emProducao*100) : 0}%)
+- Proprietario: ${dados.porPublico.proprietario} (${dados.emProducao > 0 ? Math.round(dados.porPublico.proprietario/dados.emProducao*100) : 0}%)
 
-TIPOS DE ABERTURA:
-${Object.entries(dados.aberturas).map(([k,v]) => `- ${k}: ${v}`).join('\n') || 'Nenhum registrado ainda'}
+TIPOS DE VERDADE (em producao):
+${Object.entries(dados.verdades).map(([k,v]) => `- ${k}: ${v}`).join('\n') || 'Nenhum registrado'}
 
-EMOCOES DOMINANTES:
-${Object.entries(dados.emocoes).sort((a,b)=>b[1]-a[1]).slice(0,5).map(([k,v]) => `- ${k}: ${v}`).join('\n') || 'Nenhuma registrada ainda'}
+TIPOS DE ABERTURA (em producao):
+${Object.entries(dados.aberturas).map(([k,v]) => `- ${k}: ${v}`).join('\n') || 'Nenhum registrado'}
 
-PERFORMANCE:
-- ${dados.comViews} guias com views registradas
+EMOCOES (em producao):
+${Object.entries(dados.emocoes).sort((a,b)=>b[1]-a[1]).slice(0,5).map(([k,v]) => `- ${k}: ${v}`).join('\n') || 'Nenhuma registrada'}
+
+PERFORMANCE (so publicadas — ${dados.publicadas} guias):
+- Com views registradas: ${dados.comViews}
 - Media de views: ${dados.mediaViews}
 - Total views: ${dados.totalViews}
+
+CONTEUDO PUBLICADO (leia cada tensao para identificar padroes de tema, angulo e repeticao):
+${dados.listaPublicadas?.map((g, i) => `${i+1}. [${g.publico}] [${g.emocao}] [${g.verdade}] "${g.tensao}" ${g.views > 0 ? `(${g.views} views)` : ''}`).join('\n') || 'Nenhum publicado ainda'}
 
 DNA IDEAL (193 videos reais do criador):
 - 41% constatacao, 38% afirmacao, 21% pergunta
