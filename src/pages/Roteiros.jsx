@@ -711,11 +711,14 @@ export default function Roteiros() {
     setLoading(false)
   }
 
+  const STATUS_VALIDOS = ['pendente', 'separado', 'gravado', 'publicado']
+
   const guiasFiltradas = guias
     .filter(guia => {
       if (filtroPublico && guia.publico_alvo !== filtroPublico) return false
       if (filtroStatus) {
-        const statusGuia = guia.status || 'pendente'
+        // Normaliza status — null/undefined/vazio = pendente
+        const statusGuia = STATUS_VALIDOS.includes(guia.status) ? guia.status : 'pendente'
         if (statusGuia !== filtroStatus) return false
       }
       if (busca) {
