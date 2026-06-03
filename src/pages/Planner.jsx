@@ -202,6 +202,22 @@ export default function Planner() {
     setLoading(false)
   }
 
+  const atualizarStatusGuia = async (guiaId, novoStatus) => {
+    await supabase.from('guias_profundas')
+      .update({ status: novoStatus })
+      .eq('id', guiaId)
+    // Atualiza local
+    setGuiasPorDia(prev => {
+      const novo = { ...prev }
+      Object.keys(novo).forEach(d => {
+        novo[d] = novo[d].map(g => g.id === guiaId ? { ...g, status: novoStatus } : g)
+      })
+      return novo
+    })
+    setFila(prev => prev.map(g => g.id === guiaId ? { ...g, status: novoStatus } : g))
+    if (guiaAberta?.id === guiaId) setGuiaAberta(prev => ({ ...prev, status: novoStatus }))
+  }
+
   const montarHoje = async () => {
     const hoje = getDiasSemana(semanaOffset).find(d => d.isHoje)?.date
     if (!hoje) return
@@ -458,6 +474,20 @@ export default function Planner() {
               <button onClick={() => setGuiaAberta(null)} className="text-white/30 hover:text-white/60 text-xl leading-none ml-4">×</button>
             </div>
             <div className="p-4 space-y-3">
+              {/* Funil de status */}
+              <div className="flex gap-1.5">
+                {[
+                  { s: 'separado',  label: '🔵 Separado',  cls: guiaAberta.status === 'separado'  ? 'bg-blue-500/25 text-blue-300 ring-1 ring-blue-500/40'    : 'bg-white/[0.04] text-white/25 hover:bg-white/[0.08]' },
+                  { s: 'gravado',   label: '🎬 Gravado',   cls: guiaAberta.status === 'gravado'   ? 'bg-amber-500/25 text-amber-300 ring-1 ring-amber-500/40'  : 'bg-white/[0.04] text-white/25 hover:bg-white/[0.08]' },
+                  { s: 'publicado', label: '📱 Publicado', cls: guiaAberta.status === 'publicado' ? 'bg-emerald-500/25 text-emerald-300 ring-1 ring-emerald-500/40' : 'bg-white/[0.04] text-white/25 hover:bg-white/[0.08]' },
+                ].map(({ s, label, cls }) => (
+                  <button key={s} onClick={() => atualizarStatusGuia(guiaAberta.id, s)}
+                    className={`flex-1 py-1.5 rounded-lg text-[10px] font-medium transition-all ${cls}`}>
+                    {label}
+                  </button>
+                ))}
+              </div>
+
               {guiaAberta.gancho && (
                 <div className="p-3 bg-amber-500/10 border border-amber-500/20 rounded-xl">
                   <div className="text-[10px] uppercase text-amber-400/60 mb-1">🎬 Gancho</div>
