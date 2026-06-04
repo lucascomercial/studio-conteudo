@@ -174,16 +174,22 @@ export default function Planner() {
   async function carregarEstoque() {
     const { data } = await supabase
       .from('guias_profundas')
-      .select('id, titulo, tensao_texto, publico_alvo, tom_roteiro, status, roteiro_video, roteiro_cortes, roteiro_aprovado, potencial_viral, emocao, tipo_verdade')
+      .select('id, titulo, tensao_texto, publico_alvo, tom_roteiro, status, roteiro_video, roteiro_cortes, potencial_viral, emocao, tipo_verdade')
       .in('status', ['pendente', 'separado'])
       .order('potencial_viral', { ascending: false })
-    
+
     const guias = data || []
     const corretor = guias.filter(g => g.publico_alvo !== 'proprietario')
     const proprietario = guias.filter(g => g.publico_alvo === 'proprietario')
-    
+    const comRoteiro = guias.filter(g => g.roteiro_video || g.roteiro_cortes)
+
     setTodasPendentes(guias)
-    setEstoque({ corretor: corretor.length, proprietario: proprietario.length, total: guias.length })
+    setEstoque({
+      corretor: corretor.length,
+      proprietario: proprietario.length,
+      total: guias.length,
+      comRoteiro: comRoteiro.length,
+    })
   }
 
   async function carregar(diasDaSemana) {
@@ -241,40 +247,55 @@ export default function Planner() {
 
   const gerarGrade = () => {
     const config = modoGrade === '3+2' ? { corretor: 3, proprietario: 2 } : { corretor: 2, proprietario: 1 }
-    
+
     const corretores    = todasPendentes.filter(g => g.publico_alvo !== 'proprietario')
     const proprietarios = todasPendentes.filter(g => g.publico_alvo === 'proprietario')
-    
-    // Prioriza aprovados, depois por potencial_viral, variando emoção
+
+    // Prioriza: 1. com roteiro gerado, 2. potencial viral alto, variando emoção
     const selecionar = (pool, qtd) => {
-      const aprovados = pool.filter(g => g.roteiro_aprovado)
-      const resto = pool.filter(g => !g.roteiro_aprovado)
-      const fonte = [...aprovados, ...resto]
+      // Ordena: com roteiro primeiro, depois por potencial viral
+      const ordenado = [...pool].sort((a, b) => {
+        const aTemRoteiro = !!(a.roteiro_video || a.roteiro_cortes) ? 1 : 0
+        const bTemRoteiro = !!(b.roteiro_video || b.roteiro_cortes) ? 1 : 0
+        if (bTemRoteiro !== aTemRoteiro) return bTemRoteiro - aTemRoteiro
+        return (b.potencial_viral || 0) - (a.potencial_viral || 0)
+      })
+
       const selecionadas = []
       const emocoesUsadas = new Set()
-      
-      for (const g of fonte) {
+
+      for (const g of ordenado) {
         if (selecionadas.length >= qtd) break
+        // Evita repetir emoção até ter variedade suficiente
         if (selecionadas.length > 0 && emocoesUsadas.has(g.emocao) && emocoesUsadas.size < 3) continue
         selecionadas.push(g)
         if (g.emocao) emocoesUsadas.add(g.emocao)
       }
-      
-      // Se não completou variando emoção, completa sem restrição
+
+      // Completa sem restrição se não atingiu qtd
       if (selecionadas.length < qtd) {
-        for (const g of fonte) {
+        for (const g of ordenado) {
           if (selecionadas.length >= qtd) break
           if (!selecionadas.find(s => s.id === g.id)) selecionadas.push(g)
         }
       }
       return selecionadas
     }
-    
+
     const grade = [
       ...selecionar(corretores, config.corretor),
       ...selecionar(proprietarios, config.proprietario),
     ]
-    
+
+    if (grade.length === 0) {
+      alert('Nenhuma guia disponível. Gere guias em Transcrições primeiro.')
+      return
+    }
+
+    if (proprietarios.length === 0) {
+      alert('⚠️ Sem guias de proprietário. A grade terá só corretores.')
+    }
+
     setGradeHoje(grade)
     setPainelAberto(true)
   }
@@ -518,7 +539,7 @@ export default function Planner() {
                 🏠 {estoque.proprietario}{estoque.proprietario < 5 ? ' ⚠️' : ''}
               </span>
               <span className="text-white/20 mx-1">·</span>
-              <span className="text-white/25">{estoque.total} disponíveis</span>
+              <span className="text-white/25">{estoque.comRoteiro || 0} com roteiro · {estoque.total} total</span>
             </p>
           </div>
         </div>
