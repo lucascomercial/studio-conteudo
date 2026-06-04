@@ -157,13 +157,34 @@ export default function Planner() {
   const [guiaAberta, setGuiaAberta] = useState(null)
   const [salvando, setSalvando] = useState(false)
   const [montando, setMontando] = useState(false)
+  const [modoGrade, setModoGrade] = useState('2+1') // '2+1' | '3+2'
+  const [gradeHoje, setGradeHoje] = useState([]) // guias selecionadas para hoje
+  const [painelAberto, setPainelAberto] = useState(false)
+  const [estoque, setEstoque] = useState({ corretor: 0, proprietario: 0, total: 0 })
+  const [todasPendentes, setTodasPendentes] = useState([]) // pool de guias disponíveis
   const [filtroPublico, setFiltroPublico] = useState('todos')
 
   useEffect(() => {
     const d = getDiasSemana(semanaOffset)
     setDias(d)
     carregar(d)
+    carregarEstoque()
   }, [semanaOffset])
+
+  async function carregarEstoque() {
+    const { data } = await supabase
+      .from('guias_profundas')
+      .select('id, titulo, tensao_texto, publico_alvo, tom_roteiro, status, roteiro_video, roteiro_cortes, roteiro_aprovado, potencial_viral, emocao, tipo_verdade')
+      .in('status', ['pendente', 'separado'])
+      .order('potencial_viral', { ascending: false })
+    
+    const guias = data || []
+    const corretor = guias.filter(g => g.publico_alvo !== 'proprietario')
+    const proprietario = guias.filter(g => g.publico_alvo === 'proprietario')
+    
+    setTodasPendentes(guias)
+    setEstoque({ corretor: corretor.length, proprietario: proprietario.length, total: guias.length })
+  }
 
   async function carregar(diasDaSemana) {
     setLoading(true)
@@ -216,6 +237,87 @@ export default function Planner() {
     })
     setFila(prev => prev.map(g => g.id === guiaId ? { ...g, status: novoStatus } : g))
     if (guiaAberta?.id === guiaId) setGuiaAberta(prev => ({ ...prev, status: novoStatus }))
+  }
+
+  const gerarGrade = () => {
+    const config = modoGrade === '3+2' ? { corretor: 3, proprietario: 2 } : { corretor: 2, proprietario: 1 }
+    
+    const corretores    = todasPendentes.filter(g => g.publico_alvo !== 'proprietario')
+    const proprietarios = todasPendentes.filter(g => g.publico_alvo === 'proprietario')
+    
+    // Prioriza aprovados, depois por potencial_viral, variando emoção
+    const selecionar = (pool, qtd) => {
+      const aprovados = pool.filter(g => g.roteiro_aprovado)
+      const resto = pool.filter(g => !g.roteiro_aprovado)
+      const fonte = [...aprovados, ...resto]
+      const selecionadas = []
+      const emocoesUsadas = new Set()
+      
+      for (const g of fonte) {
+        if (selecionadas.length >= qtd) break
+        if (selecionadas.length > 0 && emocoesUsadas.has(g.emocao) && emocoesUsadas.size < 3) continue
+        selecionadas.push(g)
+        if (g.emocao) emocoesUsadas.add(g.emocao)
+      }
+      
+      // Se não completou variando emoção, completa sem restrição
+      if (selecionadas.length < qtd) {
+        for (const g of fonte) {
+          if (selecionadas.length >= qtd) break
+          if (!selecionadas.find(s => s.id === g.id)) selecionadas.push(g)
+        }
+      }
+      return selecionadas
+    }
+    
+    const grade = [
+      ...selecionar(corretores, config.corretor),
+      ...selecionar(proprietarios, config.proprietario),
+    ]
+    
+    setGradeHoje(grade)
+    setPainelAberto(true)
+  }
+
+  const substituirNaGrade = (guiaId) => {
+    const guiaAtual = gradeHoje.find(g => g.id === guiaId)
+    if (!guiaAtual) return
+    
+    const pubAlvo = guiaAtual.publico_alvo
+    const jaUsados = gradeHoje.map(g => g.id)
+    
+    const candidatos = todasPendentes.filter(g =>
+      g.publico_alvo === pubAlvo &&
+      !jaUsados.includes(g.id)
+    )
+    
+    if (candidatos.length === 0) {
+      alert('Sem mais opções disponíveis para esse público.')
+      return
+    }
+    
+    const proximo = candidatos[0]
+    setGradeHoje(prev => prev.map(g => g.id === guiaId ? proximo : g))
+  }
+
+  const confirmarGrade = async () => {
+    if (gradeHoje.length === 0) return
+    setSalvando(true)
+    
+    const hoje = getDiasSemana(semanaOffset).find(d => d.isHoje)?.date
+    if (!hoje) { setSalvando(false); return }
+    
+    for (let i = 0; i < gradeHoje.length; i++) {
+      await supabase.from('guias_profundas')
+        .update({ dia_gravacao: hoje, ordem_dia: i, status: 'separado' })
+        .eq('id', gradeHoje[i].id)
+    }
+    
+    await carregar(getDiasSemana(semanaOffset))
+    await carregarEstoque()
+    setPainelAberto(false)
+    setGradeHoje([])
+    setSalvando(false)
   }
 
   const montarHoje = async () => {
@@ -335,18 +437,109 @@ export default function Planner() {
     <div className="flex flex-col h-full">
 
       {/* Header */}
+      {/* Painel de montagem da grade */}
+      {painelAberto && (
+        <div className="border-b border-white/[0.06] bg-[#0e0e10] px-4 py-4">
+          <div className="flex items-center justify-between mb-3">
+            <div>
+              <h2 className="text-sm font-medium text-[#E8E6E1]">⚡ Grade do dia</h2>
+              <p className="text-[10px] text-white/30 mt-0.5">
+                Troque os que não gostar — confirme para mover para hoje
+              </p>
+            </div>
+            <div className="flex items-center gap-2">
+              <button onClick={gerarGrade}
+                className="text-xs px-3 py-1.5 border border-white/[0.06] text-white/40 rounded-lg hover:bg-white/[0.06] transition">
+                🔄 Nova grade
+              </button>
+              <button onClick={() => { setPainelAberto(false); setGradeHoje([]) }}
+                className="text-xs px-3 py-1.5 border border-white/[0.06] text-white/40 rounded-lg hover:bg-white/[0.06] transition">
+                ✕
+              </button>
+            </div>
+          </div>
+
+          {/* Cards da grade */}
+          <div className="flex gap-2 overflow-x-auto pb-2">
+            {gradeHoje.map((guia, i) => (
+              <div key={guia.id} className={`shrink-0 w-[200px] rounded-xl border p-3 ${
+                guia.publico_alvo === 'proprietario'
+                  ? 'border-teal-500/30 bg-teal-500/5'
+                  : 'border-violet-500/30 bg-violet-500/5'
+              }`}>
+                <div className="flex items-center justify-between mb-1.5">
+                  <span className="text-[9px] text-white/30">{i+1}</span>
+                  <div className="flex gap-1">
+                    <span className="text-[9px]">{guia.publico_alvo === 'proprietario' ? '🏠' : '👔'}</span>
+                    {guia.roteiro_aprovado && <span className="text-[9px] text-emerald-400">✓</span>}
+                    {(guia.potencial_viral || 0) >= 8 && <span className="text-[9px] text-red-400">🔥</span>}
+                  </div>
+                </div>
+                <p className="text-xs text-[#E8E6E1] leading-snug line-clamp-3 mb-2">
+                  {guia.titulo || guia.tensao_texto}
+                </p>
+                <div className="flex gap-1">
+                  <span className="text-[9px] text-white/25 bg-white/[0.05] px-1.5 py-0.5 rounded">
+                    {guia.emocao || 'sem emoção'}
+                  </span>
+                </div>
+                <button onClick={() => substituirNaGrade(guia.id)}
+                  className="mt-2 w-full py-1 text-[10px] text-white/30 hover:text-white/60 border border-white/[0.06] rounded-lg hover:bg-white/[0.06] transition">
+                  🔄 Trocar
+                </button>
+              </div>
+            ))}
+            {gradeHoje.length === 0 && (
+              <p className="text-xs text-white/25 py-4">Clique em "Nova grade" para gerar</p>
+            )}
+          </div>
+
+          {/* Confirmar */}
+          {gradeHoje.length > 0 && (
+            <button onClick={confirmarGrade} disabled={salvando}
+              className="mt-3 w-full py-2.5 bg-violet-500/20 hover:bg-violet-500/30 border border-violet-500/30 text-violet-300 rounded-xl text-sm font-medium transition disabled:opacity-40">
+              {salvando ? '⏳ Confirmando...' : `✓ Confirmar ${gradeHoje.length} vídeos para hoje`}
+            </button>
+          )}
+        </div>
+      )}
+
       <div className="border-b border-white/[0.06] px-4 py-3 flex items-center justify-between gap-3">
         <div>
           <h1 className="text-sm font-medium text-[#E8E6E1]">📅 Planner de Gravação</h1>
-          <p className="text-[10px] text-white/30 mt-0.5">
-            {totalSemana} programados · {gravadosSemana} gravados essa semana
-          </p>
+          <div className="flex gap-3 mt-0.5">
+            <p className="text-[10px] text-white/30">
+              {totalSemana} programados · {gravadosSemana} gravados
+            </p>
+            <p className="text-[10px]">
+              <span className="text-violet-400">👔 {estoque.corretor}</span>
+              <span className="text-white/20 mx-1">·</span>
+              <span className={estoque.proprietario < 5 ? 'text-amber-400' : 'text-teal-400'}>
+                🏠 {estoque.proprietario}{estoque.proprietario < 5 ? ' ⚠️' : ''}
+              </span>
+              <span className="text-white/20 mx-1">·</span>
+              <span className="text-white/25">{estoque.total} disponíveis</span>
+            </p>
+          </div>
         </div>
         <div className="flex items-center gap-2">
           {salvando && <SpinIcon />}
+          {/* Seletor de modo */}
+          <div className="flex gap-1 bg-white/[0.04] rounded-lg p-0.5">
+            {['2+1', '3+2'].map(modo => (
+              <button key={modo} onClick={() => setModoGrade(modo)}
+                className={`text-xs px-2.5 py-1 rounded transition ${modoGrade === modo ? 'bg-violet-500/30 text-violet-300' : 'text-white/30 hover:text-white/50'}`}>
+                {modo}
+              </button>
+            ))}
+          </div>
+          <button onClick={gerarGrade}
+            className="text-xs px-3 py-1.5 rounded-lg border border-emerald-500/30 bg-emerald-500/15 text-emerald-300 hover:bg-emerald-500/25 transition">
+            ⚡ Grade do dia
+          </button>
           <button onClick={montarHoje} disabled={montando}
             className="text-xs px-3 py-1.5 rounded-lg border border-violet-500/30 bg-violet-500/15 text-violet-300 hover:bg-violet-500/25 transition disabled:opacity-40">
-            {montando ? '⏳' : '⚡'} Montar hoje
+            {montando ? '⏳' : '📅'} Montar hoje
           </button>
           <div className="flex items-center gap-1.5">
             <button onClick={() => setSemanaOffset(s => s - 1)}
