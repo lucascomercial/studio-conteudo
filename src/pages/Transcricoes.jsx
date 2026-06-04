@@ -45,20 +45,18 @@ export default function Transcricoes() {
   const [guiasPorTensao, setGuiasPorTensao] = useState({})
   const [gerandoTensao, setGerandoTensao] = useState({})
   const [guiasAbertos, setGuiasAbertos] = useState({})
-  const [tomPorTensao, setTomPorTensao] = useState({})  // guarda tom E publico por key
-  const [abaAtiva, setAbaAtiva] = useState('manual')
-  const [filtroPublico, setFiltroPublico] = useState('') // '' | 'corretor' | 'proprietario'
-  const [filtroBusca, setFiltroBusca] = useState('')
-  const [filtroStatus, setFiltroStatus] = useState('') // '' | 'pendente' | 'processado'
-  const [urlsLote, setUrlsLote] = useState('')
-  const [publicoLote, setPublicoLote] = useState('corretor')
-  const [importandoLote, setImportandoLote] = useState(false)
-  const [progressoLote, setProgressoLote] = useState({ atual: 0, total: 0, erros: 0 })
 
   const [titulo, setTitulo] = useState('')
   const [tipo, setTipo] = useState('aula')
   const [texto, setTexto] = useState('')
   const [processando, setProcessando] = useState(false)
+  const [abaAtiva, setAbaAtiva] = useState('manual')
+  const [fonteArtigo, setFonteArtigo] = useState('')
+  const [urlsLote, setUrlsLote] = useState('')
+  const [publicoLote, setPublicoLote] = useState('corretor')
+  const [importandoLote, setImportandoLote] = useState(false)
+  const [progressoLote, setProgressoLote] = useState({ atual: 0, total: 0, erros: 0 })
+  const [tomPorTensao, setTomPorTensao] = useState({})
 
   useEffect(() => {
     carregarTranscricoes()
@@ -110,6 +108,33 @@ export default function Transcricoes() {
     }
     setGuiasPorTensao(guiasMap)
     setLoading(false)
+  }
+
+  const importarLote = async () => {
+    const urls = urlsLote.split('\n').map(l => l.split('#')[0].trim())
+      .filter(l => l.includes('youtube.com') || l.includes('youtu.be'))
+    if (urls.length === 0) { alert('Nenhuma URL do YouTube encontrada.'); return }
+    setImportandoLote(true)
+    setProgressoLote({ atual: 0, total: urls.length, erros: 0 })
+    let erros = 0
+    for (let i = 0; i < urls.length; i++) {
+      setProgressoLote({ atual: i + 1, total: urls.length, erros })
+      try {
+        const resp = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/transcrever-youtube`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}` },
+          body: JSON.stringify({ url: urls[i], publico: publicoLote })
+        })
+        const data = await resp.json()
+        if (!resp.ok || data.error) { erros++; continue }
+        if (data.transcricao) setTranscricoes(prev => [data.transcricao, ...prev])
+      } catch (e) { erros++ }
+      if (i < urls.length - 1) await new Promise(r => setTimeout(r, 2000))
+    }
+    setProgressoLote(prev => ({ ...prev, erros }))
+    setImportandoLote(false)
+    alert(`Importação concluída!\n✅ ${urls.length - erros} importadas\n❌ ${erros} erros`)
+    if (urls.length - erros > 0) setUrlsLote('')
   }
 
   const handleProcessar = async () => {
@@ -179,9 +204,7 @@ export default function Transcricoes() {
         },
         body: JSON.stringify({
           tensao_id: tensaoId,
-          tensao_texto: tensao.tensao,
-          publico: tomPorTensao[`pub_${key}`] || tensao.publico_sugerido || 'corretor',
-          tom: tomPorTensao[key] || tensao.tom_sugerido || 'confronto'
+          tensao_texto: tensao.tensao
         })
       })
 
@@ -206,221 +229,148 @@ export default function Transcricoes() {
     setGuiasAbertos(prev => ({ ...prev, [key]: !prev[key] }))
   }
 
-  // Import em lote
-  const importarLote = async () => {
-    const urls = urlsLote
-      .split('\n')
-      .map(l => l.split('#')[0].trim())
-      .filter(l => l.includes('youtube.com') || l.includes('youtu.be'))
-    if (urls.length === 0) { alert('Nenhuma URL do YouTube encontrada.'); return }
-    setImportandoLote(true)
-    setProgressoLote({ atual: 0, total: urls.length, erros: 0 })
-    let erros = 0
-    for (let i = 0; i < urls.length; i++) {
-      setProgressoLote({ atual: i + 1, total: urls.length, erros })
-      try {
-        const resp = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/transcrever-youtube`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}` },
-          body: JSON.stringify({ url: urls[i], publico: publicoLote })
-        })
-        const data = await resp.json()
-        if (!resp.ok || data.error) { erros++; continue }
-        if (data.transcricao) setTranscricoes(prev => [data.transcricao, ...prev])
-      } catch (e) { erros++ }
-      if (i < urls.length - 1) await new Promise(r => setTimeout(r, 2000))
-    }
-    setProgressoLote(prev => ({ ...prev, erros }))
-    setImportandoLote(false)
-    alert(`Importação concluída!\n✅ ${urls.length - erros} importadas\n❌ ${erros} erros`)
-    if (urls.length - erros > 0) setUrlsLote('')
-  }
-
-  // Extrair tensões manualmente
-  const extrairTensoes = async (transcricaoId) => {
-    const key = `tensoes_${transcricaoId}`
-    setGerandoTensao(prev => ({ ...prev, [key]: true }))
-    try {
-      const resp = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/extrair-tensoes`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}` },
-        body: JSON.stringify({
-          transcricao_id: transcricaoId,
-          publico: tomPorTensao[`pub_trans_${transcricaoId}`] || 'corretor',
-          tom: tomPorTensao[`tom_trans_${transcricaoId}`] || 'confronto'
-        })
-      })
-      const data = await resp.json()
-      if (!resp.ok) throw new Error(data.error || 'Erro ao extrair')
-      const { data: trans } = await supabase.from('transcricoes').select('*').eq('id', transcricaoId).single()
-      if (trans) setTranscricoes(prev => prev.map(t => t.id === transcricaoId ? trans : t))
-    } catch (e) { alert('Erro: ' + e.message) }
-    finally { setGerandoTensao(prev => ({ ...prev, [key]: false })) }
-  }
-
-  // Filtra transcrições e tensões dentro delas
-  const transcricoesFiltradas = transcricoes.filter(trans => {
-    // Filtro de público — verifica a transcrição E as tensões dentro dela
-    if (filtroPublico) {
-      const transPublico = trans.publico_sugerido === filtroPublico
-      const tensaoPublico = trans.temas_brutos?.some(t =>
-        (t.publico_sugerido || 'corretor') === filtroPublico
-      )
-      if (!transPublico && !tensaoPublico) return false
-    }
-    // Filtro de status
-    if (filtroStatus && trans.status !== filtroStatus) return false
-    // Filtro de busca — título + tensões
-    if (filtroBusca) {
-      const termo = filtroBusca.toLowerCase()
-      const noTitulo = trans.titulo?.toLowerCase().includes(termo)
-      const naTensao = trans.temas_brutos?.some(t =>
-        t.tensao?.toLowerCase().includes(termo) ||
-        t.tema?.toLowerCase().includes(termo)
-      )
-      if (!noTitulo && !naTensao) return false
-    }
-    return true
-  })
-
-  // Para cada transcrição filtrada, filtra também as tensões internas
-  const tensoesFiltradas = (trans) => {
-    if (!trans.temas_brutos) return []
-    if (!filtroPublico) return trans.temas_brutos
-    return trans.temas_brutos.filter(t =>
-      (t.publico_sugerido || 'corretor') === filtroPublico
-    )
-  }
-
   return (
     <div className="flex flex-col h-full">
-      <div className="border-b border-white/[0.06] px-4 py-3">
-        <div className="flex items-center justify-between gap-3 flex-wrap">
-          <div>
-            <h1 className="text-sm font-medium text-[#E8E6E1]">📚 Transcrições</h1>
-            <p className="text-[10px] text-white/30 mt-0.5">
-              {transcricoesFiltradas.length}/{transcricoes.length} transcrições
-            </p>
-          </div>
-          <div className="flex gap-2 flex-wrap">
-            {/* Busca */}
-            <input
-              value={filtroBusca}
-              onChange={e => setFiltroBusca(e.target.value)}
-              placeholder="Buscar..."
-              className="bg-white/[0.04] border border-white/[0.06] rounded-lg px-3 py-1.5 text-xs text-[#E8E6E1] placeholder-white/20 w-32"
-            />
-            {/* Público */}
-            <div className="flex gap-1">
-              {[
-                { id: '', label: 'Todos' },
-                { id: 'corretor', label: '👔' },
-                { id: 'proprietario', label: '🏠' },
-              ].map(({ id, label }) => (
-                <button key={id} onClick={() => setFiltroPublico(id)}
-                  className={`text-xs px-2.5 py-1.5 rounded-lg border transition ${
-                    filtroPublico === id
-                      ? 'bg-violet-500/20 border-violet-500/30 text-violet-300'
-                      : 'bg-white/[0.03] border-white/[0.06] text-white/30 hover:bg-white/[0.07]'
-                  }`}>
-                  {label}
-                </button>
-              ))}
-            </div>
-            {/* Status */}
-            <select value={filtroStatus} onChange={e => setFiltroStatus(e.target.value)}
-              className="bg-white/[0.04] border border-white/[0.06] rounded-lg px-2 py-1.5 text-xs text-white/40">
-              <option value="">Todos status</option>
-              <option value="pendente">⏳ Pendente</option>
-              <option value="processado">✅ Processado</option>
-              <option value="sem_tensoes">❌ Sem tensões</option>
-            </select>
-            {/* Limpar */}
-            {(filtroPublico || filtroBusca || filtroStatus) && (
-              <button onClick={() => { setFiltroPublico(''); setFiltroBusca(''); setFiltroStatus('') }}
-                className="text-xs text-white/30 hover:text-white/60 px-2">
-                ✕ Limpar
-              </button>
-            )}
-          </div>
-        </div>
+      <div className="border-b border-white/[0.06] px-6 py-4">
+        <h1 className="text-sm font-medium text-[#E8E6E1]">📚 Biblioteca de Transcrições</h1>
+        <p className="text-xs text-white/30 mt-0.5">{transcricoes.length} transcrições salvas</p>
       </div>
 
       <div className="flex-1 overflow-y-auto p-6">
         <div className="bg-[#111113] border border-white/[0.06] rounded-xl mb-6 overflow-hidden">
+
+          {/* Abas */}
           <div className="flex border-b border-white/[0.06]">
-            {['manual','lote'].map(id => (
+            {[
+              { id: 'manual',  label: '✏️ Manual' },
+              { id: 'lote',    label: '📦 YouTube' },
+              { id: 'artigo',  label: '📰 Artigo' },
+            ].map(({ id, label }) => (
               <button key={id} onClick={() => setAbaAtiva(id)}
                 className={`flex-1 py-2.5 text-xs font-medium transition-all ${abaAtiva === id ? 'bg-white/[0.06] text-white/70 border-b-2 border-violet-500' : 'text-white/30 hover:text-white/50'}`}>
-                {id === 'manual' ? '✏️ Manual' : '📦 Importar em lote (YouTube)'}
+                {label}
               </button>
             ))}
           </div>
-          {abaAtiva === 'manual' && <div className="p-4">
-          <h2 className="text-sm font-medium mb-3">➕ Nova Transcrição</h2>
-          <div className="flex gap-2 mb-3">
-            <input
-              value={titulo}
-              onChange={e => setTitulo(e.target.value)}
-              placeholder="Título (opcional)..."
-              className="flex-1 bg-white/[0.04] border border-white/[0.06] rounded-lg px-3 py-2 text-sm text-[#E8E6E1] placeholder-white/20"
-            />
-            <select
-              value={tipo}
-              onChange={e => setTipo(e.target.value)}
-              className="bg-white/[0.04] border border-white/[0.06] rounded-lg px-2 py-2 text-xs text-white/50"
-            >
-              {TIPOS.map(t => <option key={t} value={t}>{t}</option>)}
-            </select>
-          </div>
-          <textarea
-            value={texto}
-            onChange={e => setTexto(e.target.value)}
-            placeholder="Cole aqui o conteúdo da transcrição, aula, podcast ou qualquer texto..."
-            rows={4}
-            className="w-full bg-white/[0.04] border border-white/[0.06] rounded-lg px-3 py-2 text-sm text-[#E8E6E1] placeholder-white/20 resize-none"
-          />
-          <div className="flex justify-end mt-3">
-            <button onClick={handleProcessar} disabled={processando || !texto.trim()}
-              className="flex items-center gap-2 px-4 py-2 bg-violet-500/15 hover:bg-violet-500/25 border border-violet-500/25 rounded-lg text-sm text-violet-300 transition-all disabled:opacity-40">
-              {processando ? <><SpinIcon /> Processando...</> : <>◈ Processar Transcrição</>}
-            </button>
-          </div>
-          </div>}
-          {abaAtiva === 'lote' && <div className="p-4 space-y-3">
-            <p className="text-xs text-white/40">Cole as URLs do YouTube (uma por linha) do arquivo <code className="text-violet-400">urls_para_apify.txt</code>.</p>
-            <div className="flex gap-2">
-              <span className="text-xs text-white/40 self-center">Público:</span>
-              {[{id:'corretor',label:'👔 Corretor'},{id:'proprietario',label:'🏠 Proprietário'}].map(({id,label}) => (
-                <button key={id} onClick={() => setPublicoLote(id)}
-                  className={`px-3 py-1 rounded-lg text-xs transition border ${publicoLote===id?'bg-violet-500/20 border-violet-500/30 text-violet-300':'bg-white/[0.03] border-white/[0.06] text-white/25 hover:bg-white/[0.07]'}`}>
-                  {label}
-                </button>
-              ))}
-            </div>
-            <textarea value={urlsLote} onChange={e => setUrlsLote(e.target.value)}
-              placeholder={"https://www.youtube.com/watch?v=xxx\nhttps://www.youtube.com/watch?v=yyy"}
-              rows={5} className="w-full bg-white/[0.04] border border-white/[0.06] rounded-lg px-3 py-2 text-xs text-[#E8E6E1] placeholder-white/20 resize-none font-mono" />
-            {importandoLote && (
-              <div className="bg-white/[0.03] rounded-lg p-3">
-                <div className="flex justify-between text-xs text-white/50 mb-1.5">
-                  <span>Importando... {progressoLote.atual}/{progressoLote.total}</span>
-                  {progressoLote.erros > 0 && <span className="text-red-400">{progressoLote.erros} erros</span>}
-                </div>
-                <div className="h-1.5 bg-white/[0.06] rounded-full overflow-hidden">
-                  <div className="h-full bg-violet-500 rounded-full transition-all"
-                    style={{ width: `${progressoLote.total > 0 ? (progressoLote.atual/progressoLote.total)*100 : 0}%` }} />
-                </div>
+
+          {/* Aba Manual */}
+          {abaAtiva === 'manual' && (
+            <div className="p-4 space-y-3">
+              <div className="flex gap-2">
+                <input value={titulo} onChange={e => setTitulo(e.target.value)}
+                  placeholder="Título (opcional)..."
+                  className="flex-1 bg-white/[0.04] border border-white/[0.06] rounded-lg px-3 py-2 text-sm text-[#E8E6E1] placeholder-white/20" />
+                <select value={tipo} onChange={e => setTipo(e.target.value)}
+                  className="bg-white/[0.04] border border-white/[0.06] rounded-lg px-2 py-2 text-xs text-white/50">
+                  {TIPOS.map(t => <option key={t} value={t}>{t}</option>)}
+                </select>
               </div>
-            )}
-            <div className="flex items-center justify-between">
-              <span className="text-xs text-white/25">{urlsLote.split('\n').filter(l=>l.includes('youtube')).length} URLs</span>
-              <button onClick={importarLote} disabled={importandoLote || !urlsLote.trim()}
-                className="flex items-center gap-2 px-4 py-2 bg-violet-500/15 hover:bg-violet-500/25 border border-violet-500/25 rounded-lg text-sm text-violet-300 transition-all disabled:opacity-40">
-                {importandoLote ? <><SpinIcon /> Importando...</> : '📦 Importar tudo'}
+              <textarea value={texto} onChange={e => setTexto(e.target.value)}
+                placeholder="Cole aqui o conteúdo da transcrição, aula, podcast ou qualquer texto..."
+                rows={4} className="w-full bg-white/[0.04] border border-white/[0.06] rounded-lg px-3 py-2 text-sm text-[#E8E6E1] placeholder-white/20 resize-none" />
+              <div className="flex justify-end">
+                <button onClick={handleProcessar} disabled={processando || !texto.trim()}
+                  className="flex items-center gap-2 px-4 py-2 bg-violet-500/15 hover:bg-violet-500/25 border border-violet-500/25 rounded-lg text-sm text-violet-300 transition-all disabled:opacity-40">
+                  {processando ? <><SpinIcon /> Processando...</> : <>◈ Processar Transcrição</>}
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* Aba YouTube em lote */}
+          {abaAtiva === 'lote' && (
+            <div className="p-4 space-y-3">
+              <p className="text-xs text-white/40">Cole as URLs do YouTube (uma por linha). O sistema transcreve e extrai tensões automaticamente.</p>
+              <div className="flex gap-2">
+                <span className="text-xs text-white/40 self-center">Público:</span>
+                {[{id:'corretor',label:'👔 Corretor'},{id:'proprietario',label:'🏠 Proprietário'}].map(({id,label}) => (
+                  <button key={id} onClick={() => setPublicoLote(id)}
+                    className={`px-3 py-1 rounded-lg text-xs transition border ${publicoLote===id?'bg-violet-500/20 border-violet-500/30 text-violet-300':'bg-white/[0.03] border-white/[0.06] text-white/25 hover:bg-white/[0.07]'}`}>
+                    {label}
+                  </button>
+                ))}
+              </div>
+              <textarea value={urlsLote} onChange={e => setUrlsLote(e.target.value)}
+                placeholder={"https://www.youtube.com/watch?v=xxx\nhttps://www.youtube.com/watch?v=yyy"}
+                rows={5} className="w-full bg-white/[0.04] border border-white/[0.06] rounded-lg px-3 py-2 text-xs text-[#E8E6E1] placeholder-white/20 resize-none font-mono" />
+              {importandoLote && (
+                <div className="bg-white/[0.03] rounded-lg p-3">
+                  <div className="flex justify-between text-xs text-white/50 mb-1.5">
+                    <span>Importando... {progressoLote.atual}/{progressoLote.total}</span>
+                    {progressoLote.erros > 0 && <span className="text-red-400">{progressoLote.erros} erros</span>}
+                  </div>
+                  <div className="h-1.5 bg-white/[0.06] rounded-full overflow-hidden">
+                    <div className="h-full bg-violet-500 rounded-full transition-all"
+                      style={{ width: `${progressoLote.total > 0 ? (progressoLote.atual/progressoLote.total)*100 : 0}%` }} />
+                  </div>
+                </div>
+              )}
+              <div className="flex items-center justify-between">
+                <span className="text-xs text-white/25">{urlsLote.split('\n').filter(l=>l.includes('youtube')).length} URLs</span>
+                <button onClick={importarLote} disabled={importandoLote || !urlsLote.trim()}
+                  className="flex items-center gap-2 px-4 py-2 bg-violet-500/15 hover:bg-violet-500/25 border border-violet-500/25 rounded-lg text-sm text-violet-300 transition-all disabled:opacity-40">
+                  {importandoLote ? <><SpinIcon /> Importando...</> : '📦 Importar tudo'}
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* Aba Artigo / Reportagem */}
+          {abaAtiva === 'artigo' && (
+            <div className="p-4 space-y-3">
+              <p className="text-xs text-white/40">
+                Cole qualquer artigo ou reportagem. O sistema extrai as implicações práticas para corretor ou proprietário no mercado de Brasília.
+              </p>
+              <input value={fonteArtigo} onChange={e => setFonteArtigo(e.target.value)}
+                placeholder="Fonte (ex: Correio Braziliense, 03/06/2026)"
+                className="w-full bg-white/[0.04] border border-white/[0.06] rounded-lg px-3 py-2 text-xs text-[#E8E6E1] placeholder-white/20" />
+              <textarea value={texto} onChange={e => setTexto(e.target.value)}
+                placeholder="Cole o texto do artigo ou reportagem aqui..."
+                rows={6} className="w-full bg-white/[0.04] border border-white/[0.06] rounded-lg px-3 py-2 text-xs text-[#E8E6E1] placeholder-white/20 resize-none" />
+              <div className="flex gap-2">
+                {[{id:'corretor',label:'👔 Corretor'},{id:'proprietario',label:'🏠 Proprietário'}].map(({id,label}) => (
+                  <button key={id}
+                    onClick={() => setTomPorTensao(prev => ({...prev, pub_artigo: id}))}
+                    className={`flex-1 py-2 rounded-lg text-xs transition border ${(tomPorTensao.pub_artigo||'corretor')===id?'bg-violet-500/20 border-violet-500/30 text-violet-300':'bg-white/[0.03] border-white/[0.06] text-white/25 hover:bg-white/[0.07]'}`}>
+                    {label}
+                  </button>
+                ))}
+              </div>
+              <button onClick={async () => {
+                if (!texto.trim()) return
+                setProcessando(true)
+                try {
+                  const tituloArtigo = fonteArtigo ? `📰 ${fonteArtigo}` : '📰 Artigo importado'
+                  const { data: trans, error } = await supabase.from('transcricoes').insert({
+                    titulo: tituloArtigo.substring(0, 200),
+                    tipo: 'artigo',
+                    conteudo_original: texto,
+                    status: 'pendente',
+                    publico_sugerido: tomPorTensao.pub_artigo || 'corretor',
+                    roteiros_gerados: 0,
+                  }).select().single()
+                  if (error) throw error
+                  setTranscricoes(prev => [trans, ...prev])
+                  setTexto('')
+                  setFonteArtigo('')
+                  // Extrai tensões automaticamente
+                  fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/extrair-tensoes`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}` },
+                    body: JSON.stringify({
+                      transcricao_id: trans.id,
+                      publico: tomPorTensao.pub_artigo || 'corretor',
+                      tipo_fonte: 'artigo',
+                    })
+                  }).catch(() => {})
+                } catch(e) { alert('Erro: ' + e.message) }
+                finally { setProcessando(false) }
+              }} disabled={processando || !texto.trim()}
+                className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-violet-500/15 hover:bg-violet-500/25 border border-violet-500/25 rounded-lg text-sm text-violet-300 transition disabled:opacity-40">
+                {processando ? <><SpinIcon /> Processando...</> : '📰 Importar e extrair tensões'}
               </button>
             </div>
-          </div>}
+          )}
         </div>
 
         {loading ? (
@@ -429,7 +379,7 @@ export default function Transcricoes() {
           <div className="text-center py-12 text-white/30">Nenhuma transcrição salva ainda.</div>
         ) : (
           <div className="space-y-4">
-            {transcricoesFiltradas.map(trans => (
+            {transcricoes.map(trans => (
               <div key={trans.id} className="bg-[#111113] border border-white/[0.06] rounded-xl overflow-hidden">
                 <button
                   onClick={() => setExpandedId(expandedId === trans.id ? null : trans.id)}
@@ -441,22 +391,8 @@ export default function Transcricoes() {
                       <span className="text-[10px] text-white/30">
                         {new Date(trans.created_at).toLocaleDateString('pt-BR')}
                       </span>
-                      {trans.publico_sugerido && (
-                        <span className={`text-[10px] px-2 py-0.5 rounded-full ${trans.publico_sugerido === 'proprietario' ? 'bg-teal-500/20 text-teal-400' : 'bg-violet-500/20 text-violet-400'}`}>
-                          {trans.publico_sugerido === 'proprietario' ? '🏠 Proprietário' : '👔 Corretor'}
-                        </span>
-                      )}
                     </div>
-                    <h3 className="font-medium text-[#E8E6E1] leading-snug">
-                      {trans.titulo && trans.titulo !== `YouTube ${trans.fonte_url?.match(/[?&]v=([^&]+)/)?.[1]}`
-                        ? trans.titulo
-                        : trans.fonte_url
-                          ? `YouTube · ${trans.fonte_url.match(/[?&]v=([^&]+)/)?.[1] || trans.fonte_url.slice(-11)}`
-                          : trans.titulo || 'Sem título'}
-                    </h3>
-                    {trans.fonte_url && trans.titulo && trans.titulo.length > 5 && !trans.titulo.startsWith('YouTube') && (
-                      <p className="text-[10px] text-white/25 mt-0.5 truncate">{trans.fonte_url.match(/[?&]v=([^&]+)/)?.[1]}</p>
-                    )}
+                    <h3 className="font-medium text-[#E8E6E1]">{trans.titulo}</h3>
                     {trans.resumo && <p className="text-xs text-white/40 mt-1 line-clamp-2">{trans.resumo}</p>}
                     <div className="flex items-center gap-3 mt-2">
                       <span className="text-xs text-white/30">📊 {trans.roteiros_gerados || 0} roteiros</span>
@@ -484,41 +420,12 @@ export default function Transcricoes() {
                           </div>
                         )}
 
-                        {(!trans.temas_brutos || trans.temas_brutos.length === 0) && (
-                          <div className="p-3 bg-white/[0.02] border border-white/[0.05] rounded-lg space-y-2">
-                            <span className="text-[10px] uppercase text-white/25">⏳ Tensões não extraídas</span>
-                            <div className="flex gap-1.5 flex-wrap">
-                              <span className="text-[10px] text-white/30 self-center">Público:</span>
-                              {[{id:'corretor',label:'👔 Corretor'},{id:'proprietario',label:'🏠 Proprietário'}].map(({id,label}) => (
-                                <button key={id} onClick={() => setTomPorTensao(prev=>({...prev,[`pub_trans_${trans.id}`]:id}))}
-                                  className={`px-2 py-0.5 rounded text-[10px] border transition ${(tomPorTensao[`pub_trans_${trans.id}`]||'corretor')===id?'bg-violet-500/20 border-violet-500/30 text-violet-300':'bg-white/[0.03] border-white/[0.06] text-white/25 hover:bg-white/[0.07]'}`}>{label}</button>
-                              ))}
-                              <span className="text-[10px] text-white/30 self-center ml-1">Tom:</span>
-                              {[{id:'confronto',label:'⚡'},{id:'ajuda',label:'🤝'}].map(({id,label}) => (
-                                <button key={id} onClick={() => setTomPorTensao(prev=>({...prev,[`tom_trans_${trans.id}`]:id}))}
-                                  className={`px-2 py-0.5 rounded text-[10px] border transition ${(tomPorTensao[`tom_trans_${trans.id}`]||'confronto')===id?id==='confronto'?'bg-rose-500/20 border-rose-500/30 text-rose-300':'bg-teal-500/20 border-teal-500/30 text-teal-300':'bg-white/[0.03] border-white/[0.06] text-white/25 hover:bg-white/[0.07]'}`}>{label}</button>
-                              ))}
-                            </div>
-                            <button onClick={() => extrairTensoes(trans.id)} disabled={gerandoTensao[`tensoes_${trans.id}`]}
-                              className="w-full text-xs px-3 py-2 bg-violet-500/20 hover:bg-violet-500/30 text-violet-300 rounded-lg transition disabled:opacity-40 flex items-center justify-center gap-1.5">
-                              {gerandoTensao[`tensoes_${trans.id}`] ? <><SpinIcon /> Extraindo...</> : '⚡ Extrair tensões'}
-                            </button>
-                          </div>
-                        )}
-
                         {trans.temas_brutos?.length > 0 && (
                           <div>
-                            <div className="flex items-center justify-between mb-2">
-                              <div className="text-[10px] uppercase text-white/30">
-                                ⚡ Tensões {filtroPublico ? `(${tensoesFiltradas(trans).length} de ${trans.temas_brutos.length})` : `(${trans.temas_brutos.length})`}
-                              </div>
-                            </div>
+                            <div className="text-[10px] uppercase text-white/30 mb-2">⚡ Tensões extraídas</div>
                             <div className="space-y-3">
-                              {tensoesFiltradas(trans).map((tensao, idx) => {
-                                const realIdx = trans.temas_brutos.indexOf(tensao)
-                                const idx2 = realIdx >= 0 ? realIdx : idx
-                                const idx2_real = realIdx >= 0 ? realIdx : idx
-                                const key = `${trans.id}_${idx2_real}`
+                              {trans.temas_brutos.map((tensao, idx) => {
+                                const key = `${trans.id}_${idx}`
                                 const guia = guiasPorTensao[key]
                                 const gerando = gerandoTensao[key]
                                 const guiaAberto = guiasAbertos[key]
@@ -546,26 +453,13 @@ export default function Transcricoes() {
                                         )}
                                       </div>
                                       {!guia ? (
-                                        <div className="ml-2 flex flex-col gap-1 items-end shrink-0">
-                                          <div className="flex gap-1">
-                                            {[{id:'corretor',label:'👔'},{id:'proprietario',label:'🏠'}].map(({id,label}) => (
-                                              <button key={id} title={id}
-                                                onClick={() => setTomPorTensao(prev => ({...prev,[`pub_${key}`]:id}))}
-                                                className={`text-[10px] px-1.5 py-0.5 rounded border transition ${(tomPorTensao[`pub_${key}`]||tensao.publico_sugerido||'corretor')===id?'bg-violet-500/25 border-violet-500/40 text-violet-300':'bg-white/[0.03] border-white/[0.06] text-white/25 hover:bg-white/[0.08]'}`}>{label}</button>
-                                            ))}
-                                          </div>
-                                          <div className="flex gap-1">
-                                            {[{id:'confronto',label:'⚡'},{id:'ajuda',label:'🤝'}].map(({id,label}) => (
-                                              <button key={id} title={id}
-                                                onClick={() => setTomPorTensao(prev => ({...prev,[key]:id}))}
-                                                className={`text-[10px] px-1.5 py-0.5 rounded border transition ${(tomPorTensao[key]||tensao.tom_sugerido||'confronto')===id?id==='confronto'?'bg-rose-500/20 border-rose-500/30 text-rose-300':'bg-teal-500/20 border-teal-500/30 text-teal-300':'bg-white/[0.03] border-white/[0.06] text-white/25 hover:bg-white/[0.08]'}`}>{label}</button>
-                                            ))}
-                                          </div>
-                                          <button onClick={() => gerarGuiaParaTensao(trans, tensao, idx)} disabled={gerando}
-                                            className="text-xs bg-violet-500/20 hover:bg-violet-500/30 text-violet-300 px-2 py-1 rounded whitespace-nowrap">
-                                            {gerando ? <SpinIcon /> : '🎬 Gerar guia'}
-                                          </button>
-                                        </div>
+                                        <button
+                                          onClick={() => gerarGuiaParaTensao(trans, tensao, idx)}
+                                          disabled={gerando}
+                                          className="ml-2 text-xs bg-violet-500/20 hover:bg-violet-500/30 text-violet-300 px-2 py-1 rounded whitespace-nowrap"
+                                        >
+                                          {gerando ? <SpinIcon /> : '🎬 Gerar guia profundo'}
+                                        </button>
                                       ) : (
                                         <button
                                           onClick={() => toggleGuia(key)}
