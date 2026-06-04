@@ -57,6 +57,10 @@ export default function Transcricoes() {
   const [importandoLote, setImportandoLote] = useState(false)
   const [progressoLote, setProgressoLote] = useState({ atual: 0, total: 0, erros: 0 })
   const [tomPorTensao, setTomPorTensao] = useState({})
+  const [gerandoLote, setGerandoLote] = useState(false)
+  const [progressoGuias, setProgressoGuias] = useState({ atual: 0, total: 0, erros: 0 })
+  const [painelLoteAberto, setPainelLoteAberto] = useState(false)
+  const [estoqueGuias, setEstoqueGuias] = useState({ semGuia: 0, comGuia: 0, total: 0 })
 
   useEffect(() => {
     carregarTranscricoes()
@@ -108,6 +112,80 @@ export default function Transcricoes() {
     }
     setGuiasPorTensao(guiasMap)
     setLoading(false)
+  }
+
+  // Carrega contagem de tensões sem guia
+  const carregarEstoqueGuias = async () => {
+    const { data } = await supabase
+      .from('tensoes')
+      .select('id, guia_id')
+      .eq('status', 'pendente')
+    const semGuia = (data || []).filter(t => !t.guia_id).length
+    const comGuia = (data || []).filter(t => t.guia_id).length
+    setEstoqueGuias({ semGuia, comGuia, total: (data || []).length })
+  }
+
+  // Gera guias em lote para todas as tensões sem guia
+  const gerarGuiasEmLote = async (publico = 'todos', limite = 20) => {
+    setGerandoLote(true)
+    setProgressoGuias({ atual: 0, total: 0, erros: 0 })
+
+    // Busca tensões sem guia
+    let query = supabase
+      .from('tensoes')
+      .select('id, tensao, publico_sugerido, tom_sugerido')
+      .eq('status', 'pendente')
+      .is('guia_id', null)
+      .limit(limite)
+
+    if (publico !== 'todos') {
+      query = query.eq('publico_sugerido', publico)
+    }
+
+    const { data: tensoes } = await query
+
+    if (!tensoes || tensoes.length === 0) {
+      alert('Nenhuma tensão pendente encontrada.')
+      setGerandoLote(false)
+      return
+    }
+
+    setProgressoGuias({ atual: 0, total: tensoes.length, erros: 0 })
+    let erros = 0
+
+    for (let i = 0; i < tensoes.length; i++) {
+      const tensao = tensoes[i]
+      setProgressoGuias({ atual: i + 1, total: tensoes.length, erros })
+      try {
+        const resp = await fetch(
+          `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/gerar-guia`,
+          {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`
+            },
+            body: JSON.stringify({
+              tensao_id: tensao.id,
+              tensao_texto: tensao.tensao,
+              publico: tensao.publico_sugerido || 'corretor',
+              tom: tensao.tom_sugerido || 'confronto',
+            })
+          }
+        )
+        const data = await resp.json()
+        if (!resp.ok || data.error) { erros++; continue }
+      } catch (e) { erros++ }
+      // Pausa entre requisições
+      if (i < tensoes.length - 1) await new Promise(r => setTimeout(r, 1500))
+    }
+
+    setProgressoGuias(prev => ({ ...prev, erros }))
+    setGerandoLote(false)
+    await carregarEstoqueGuias()
+    alert(`Concluído!
+✅ ${tensoes.length - erros} guias geradas
+❌ ${erros} erros`)
   }
 
   const importarLote = async () => {
@@ -231,9 +309,60 @@ export default function Transcricoes() {
 
   return (
     <div className="flex flex-col h-full">
-      <div className="border-b border-white/[0.06] px-6 py-4">
-        <h1 className="text-sm font-medium text-[#E8E6E1]">📚 Biblioteca de Transcrições</h1>
-        <p className="text-xs text-white/30 mt-0.5">{transcricoes.length} transcrições salvas</p>
+
+      {/* Painel de geração em lote */}
+      {painelLoteAberto && (
+        <div className="border-b border-white/[0.06] bg-[#0e0e10] px-4 py-4 space-y-3">
+          <div className="flex items-center justify-between">
+            <div>
+              <h2 className="text-sm font-medium text-[#E8E6E1]">⚡ Gerar guias em lote</h2>
+              <p className="text-[10px] text-white/30 mt-0.5">
+                {estoqueGuias.semGuia} tensões sem guia · {estoqueGuias.comGuia} já com guia
+              </p>
+            </div>
+            <button onClick={() => setPainelLoteAberto(false)} className="text-white/30 hover:text-white/60 text-lg">×</button>
+          </div>
+          {gerandoLote ? (
+            <div className="space-y-2">
+              <div className="flex justify-between text-xs text-white/50">
+                <span>Gerando guia {progressoGuias.atual} de {progressoGuias.total}...</span>
+                {progressoGuias.erros > 0 && <span className="text-red-400">{progressoGuias.erros} erros</span>}
+              </div>
+              <div className="h-2 bg-white/[0.06] rounded-full overflow-hidden">
+                <div className="h-full bg-violet-500 rounded-full transition-all"
+                  style={{ width: `${progressoGuias.total > 0 ? (progressoGuias.atual/progressoGuias.total)*100 : 0}%` }} />
+              </div>
+              <p className="text-[10px] text-white/25 text-center">~5s por guia — não feche a página</p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-2 gap-2">
+              {[
+                { label: '👔 20 Corretor',      publico: 'corretor',     limite: 20 },
+                { label: '🏠 20 Proprietário',  publico: 'proprietario', limite: 20 },
+                { label: '🔀 20 Misturados',    publico: 'todos',        limite: 20 },
+                { label: '🚀 50 Misturados',    publico: 'todos',        limite: 50 },
+              ].map(({ label, publico, limite }) => (
+                <button key={label} onClick={() => gerarGuiasEmLote(publico, limite)}
+                  className="py-2.5 bg-white/[0.04] hover:bg-white/[0.08] border border-white/[0.06] rounded-xl text-xs text-white/50 hover:text-white/70 transition">
+                  {label}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      <div className="border-b border-white/[0.06] px-4 py-3">
+        <div className="flex items-center justify-between gap-2 flex-wrap">
+          <div>
+            <h1 className="text-sm font-medium text-[#E8E6E1]">📚 Transcrições</h1>
+            <p className="text-xs text-white/30 mt-0.5">{transcricoes.length} transcrições</p>
+          </div>
+          <button onClick={() => { setPainelLoteAberto(p => !p); carregarEstoqueGuias() }}
+            className={`text-xs px-3 py-1.5 rounded-lg border transition ${painelLoteAberto ? 'bg-violet-500/20 border-violet-500/30 text-violet-300' : 'border-white/[0.06] text-white/30 hover:bg-white/[0.06]'}`}>
+            ⚡ Gerar guias {estoqueGuias.semGuia > 0 ? `(${estoqueGuias.semGuia})` : ''}
+          </button>
+        </div>
       </div>
 
       <div className="flex-1 overflow-y-auto p-6">
