@@ -509,27 +509,49 @@ export default function Roteiros() {
   }, [])
 
   const recriarGuia = async (guia) => {
-    if (!confirm('Recriar esta guia com o novo prompt? A guia atual será substituída.')) return
+    const opcao = confirm('Criar nova versão desta guia? (OK = nova guia, Cancelar = sobrescrever a atual)')
+    const criarNova = opcao
 
+    // Busca a tensão original com todos os dados
     let tensaoId = guia.tensao_id
+    let tensaoCompleta = null
 
-    if (!tensaoId) {
+    // Tenta encontrar a tensão pelo ID ou pelo texto
+    if (tensaoId) {
+      const { data } = await supabase
+        .from('tensoes')
+        .select('id, tensao, publico_sugerido, tom_sugerido')
+        .eq('id', tensaoId)
+        .maybeSingle()
+      tensaoCompleta = data
+    }
+
+    if (!tensaoCompleta) {
       const tensaoTexto = guia.tensao_texto || guia.titulo
       if (!tensaoTexto) {
         alert('❌ Não foi possível identificar a tensão original.')
         return
       }
-      const { data: tensaoEncontrada, error: buscaError } = await supabase
+      const { data: tensaoEncontrada } = await supabase
         .from('tensoes')
-        .select('id')
-        .eq('tensao', tensaoTexto)
+        .select('id, tensao, publico_sugerido, tom_sugerido')
+        .ilike('tensao', `%${tensaoTexto.substring(0, 40)}%`)
         .maybeSingle()
-      if (buscaError || !tensaoEncontrada) {
-        alert('❌ Não foi encontrar a tensão original no banco.')
-        return
+      tensaoCompleta = tensaoEncontrada
+      if (tensaoCompleta) {
+        tensaoId = tensaoCompleta.id
+        await supabase.from('guias_profundas').update({ tensao_id: tensaoId }).eq('id', guia.id)
       }
-      tensaoId = tensaoEncontrada.id
-      await supabase.from('guias_profundas').update({ tensao_id: tensaoId }).eq('id', guia.id)
+    }
+
+    // Público e tom: prioriza guia original > tensão > fallback
+    const publico = guia.publico_alvo || tensaoCompleta?.publico_sugerido || 'corretor'
+    const tom = guia.tom_roteiro || tensaoCompleta?.tom_sugerido || 'confronto'
+    const tensaoTexto = tensaoCompleta?.tensao || guia.tensao_texto || guia.titulo
+
+    if (!tensaoId && !tensaoTexto) {
+      alert('❌ Não foi possível identificar a tensão original.')
+      return
     }
 
     try {
@@ -541,9 +563,9 @@ export default function Roteiros() {
         },
         body: JSON.stringify({
           tensao_id: tensaoId,
-          tensao_texto: guia.tensao_texto || guia.titulo,
-          publico: guia.publico_alvo || 'corretor',
-          tom: guia.tom_roteiro || 'confronto',
+          tensao_texto: tensaoTexto,
+          publico,
+          tom,
         })
       })
 
@@ -552,9 +574,7 @@ export default function Roteiros() {
 
       const novaGuia = result.guia
 
-      await supabase
-        .from('guias_profundas')
-        .update({
+      const dadosGuia = {
           tensao_id: tensaoId,
           publico_alvo: guia.publico_alvo || novaGuia.publico || 'corretor',
           narrativa: novaGuia.narrativa,
@@ -600,11 +620,20 @@ export default function Roteiros() {
           verdade_dificil: novaGuia.verdade_dificil,
           sinais_reais_de_desconfianca: novaGuia.sinais_reais_de_desconfianca || [],
           como_isso_vira_conteudo_de_camera: novaGuia.como_isso_vira_conteudo_de_camera,
-          updated_at: new Date().toISOString()
-        })
-        .eq('id', guia.id)
+          updated_at: new Date().toISOString(),
+          status: 'pendente',
+        }
 
-      alert('✅ Guia recriada com sucesso!')
+      if (criarNova) {
+        // Cria nova guia sem sobrescrever a original
+        delete dadosGuia.updated_at
+        await supabase.from('guias_profundas').insert({ ...dadosGuia, titulo: guia.titulo || guia.tensao_texto })
+        alert('✅ Nova versão criada! A guia original foi mantida.')
+      } else {
+        // Sobrescreve a guia atual
+        await supabase.from('guias_profundas').update(dadosGuia).eq('id', guia.id)
+        alert('✅ Guia atualizada com sucesso!')
+      }
       setModalGuia(null)
       carregarDados()
     } catch (err) {
