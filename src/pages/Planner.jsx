@@ -298,26 +298,40 @@ export default function Planner() {
 
     setGradeHoje(grade)
     setPainelAberto(true)
+    setTrocasGrade({})
   }
 
+  const [trocasGrade, setTrocasGrade] = useState({}) // rastreia quantas trocas por posição
+
   const substituirNaGrade = (guiaId) => {
-    const guiaAtual = gradeHoje.find(g => g.id === guiaId)
-    if (!guiaAtual) return
-    
+    const posicao = gradeHoje.findIndex(g => g.id === guiaId)
+    if (posicao === -1) return
+
+    const guiaAtual = gradeHoje[posicao]
     const pubAlvo = guiaAtual.publico_alvo
     const jaUsados = gradeHoje.map(g => g.id)
-    
+
     const candidatos = todasPendentes.filter(g =>
       g.publico_alvo === pubAlvo &&
       !jaUsados.includes(g.id)
     )
-    
+
     if (candidatos.length === 0) {
       alert('Sem mais opções disponíveis para esse público.')
       return
     }
-    
-    const proximo = candidatos[0]
+
+    // Rotaciona pelo índice de trocas desta posição
+    const trocasFeitas = trocasGrade[posicao] || 0
+
+    if (trocasFeitas >= candidatos.length) {
+      alert(`Você já viu todas as ${candidatos.length} opções disponíveis para esse público. Gere mais guias em Transcrições.`)
+      return
+    }
+
+    const proximo = candidatos[trocasFeitas]
+
+    setTrocasGrade(prev => ({ ...prev, [posicao]: trocasFeitas + 1 }))
     setGradeHoje(prev => prev.map(g => g.id === guiaId ? proximo : g))
   }
 
