@@ -43,7 +43,7 @@ function Badge({ label, className }) {
   return <span className={`inline-flex items-center px-2 py-0.5 rounded text-[10px] font-medium ${className}`}>{label}</span>
 }
 
-function GuiaModal({ guia, onClose, onDelete, onRecriar, onStatusChange }) {
+function GuiaModal({ guia, onClose, onDelete, onRecriar, onStatusChange, onGerarOutroPublico }) {
   const [deletando, setDeletando] = useState(false)
   const [roteiro, setRoteiro] = useState(guia.roteiro_video || '')
   const [gerandoRoteiro, setGerandoRoteiro] = useState(false)
@@ -483,6 +483,13 @@ function GuiaModal({ guia, onClose, onDelete, onRecriar, onStatusChange }) {
                 🔄 Recriar
               </button>
             )}
+            {onGerarOutroPublico && (
+              <button onClick={() => onGerarOutroPublico(guia)}
+                className="px-3 py-2 bg-teal-500/15 hover:bg-teal-500/25 rounded-lg text-xs text-teal-400 transition"
+                title={`Gerar versão para ${guia.publico_alvo === 'proprietario' ? 'Corretor' : 'Proprietário'}`}>
+                {guia.publico_alvo === 'proprietario' ? '👔' : '🏠'} Gerar outro
+              </button>
+            )}
             <button onClick={onClose}
               className="flex-1 py-2 bg-white/[0.06] hover:bg-white/[0.1] rounded-lg text-xs text-white/40 transition">
               Fechar
@@ -544,9 +551,20 @@ export default function Roteiros() {
       }
     }
 
-    // Público e tom: prioriza guia original > tensão > fallback
-    const publico = guia.publico_alvo || tensaoCompleta?.publico_sugerido || 'corretor'
-    const tom = guia.tom_roteiro || tensaoCompleta?.tom_sugerido || 'confronto'
+    // Busca os dados mais recentes da guia do banco para garantir publico_alvo correto
+    const { data: guiaAtual } = await supabase
+      .from('guias_profundas')
+      .select('publico_alvo, tom_roteiro')
+      .eq('id', guia.id)
+      .single()
+
+    // Público e tom: banco > guia local > pergunta ao usuário
+    let publico = guiaAtual?.publico_alvo || guia.publico_alvo
+    if (!publico || publico === 'undefined') {
+      const escolha = confirm('Qual o público desta guia?\nOK = Proprietário\nCancelar = Corretor')
+      publico = escolha ? 'proprietario' : 'corretor'
+    }
+    const tom = guiaAtual?.tom_roteiro || guia.tom_roteiro || tensaoCompleta?.tom_sugerido || 'confronto'
     const tensaoTexto = tensaoCompleta?.tensao || guia.tensao_texto || guia.titulo
 
     if (!tensaoId && !tensaoTexto) {
@@ -639,6 +657,43 @@ export default function Roteiros() {
     } catch (err) {
       console.error('Erro ao recriar:', err)
       alert('Erro ao recriar: ' + err.message)
+    }
+  }
+
+  const gerarParaOutroPublico = async (guia) => {
+    const outroPublico = guia.publico_alvo === 'proprietario' ? 'corretor' : 'proprietario'
+    const label = outroPublico === 'proprietario' ? 'Proprietário' : 'Corretor'
+
+    if (!confirm(`Gerar versão para ${label}? Será criada uma nova guia separada.`)) return
+
+    // Busca tensão completa
+    let tensaoId = guia.tensao_id
+    let tensaoTexto = guia.tensao_texto || guia.titulo
+
+    if (tensaoId) {
+      const { data } = await supabase.from('tensoes')
+        .select('id, tensao, tom_sugerido')
+        .eq('id', tensaoId).maybeSingle()
+      if (data) tensaoTexto = data.tensao
+    }
+
+    try {
+      const resp = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/gerar-guia`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}` },
+        body: JSON.stringify({
+          tensao_id: tensaoId,
+          tensao_texto: tensaoTexto,
+          publico: outroPublico,
+          tom: guia.tom_roteiro || 'confronto',
+        })
+      })
+      const result = await resp.json()
+      if (!resp.ok) throw new Error(result.error || 'Erro')
+      alert(`✅ Versão para ${label} criada!`)
+      carregarDados()
+    } catch(e) {
+      alert('Erro: ' + e.message)
     }
   }
 
@@ -919,6 +974,7 @@ export default function Roteiros() {
             onDelete={handleDeleteGuide}
             onRecriar={recriarGuia}
             onStatusChange={atualizarStatus}
+            onGerarOutroPublico={gerarParaOutroPublico}
           />
         )}
       </AnimatePresence>
