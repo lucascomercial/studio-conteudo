@@ -510,18 +510,27 @@ export default function Planner() {
                     {(guia.potencial_viral || 0) >= 8 && <span className="text-[9px] text-red-400">🔥</span>}
                   </div>
                 </div>
-                <p className="text-xs text-[#E8E6E1] leading-snug line-clamp-3 mb-2">
+                <p
+                  onClick={() => setGuiaAberta(guia)}
+                  className="text-xs text-[#E8E6E1] leading-snug line-clamp-3 mb-2 cursor-pointer hover:text-white transition"
+                >
                   {guia.titulo || guia.tensao_texto}
                 </p>
-                <div className="flex gap-1">
+                <div className="flex gap-1 mb-2">
                   <span className="text-[9px] text-white/25 bg-white/[0.05] px-1.5 py-0.5 rounded">
                     {guia.emocao || 'sem emoção'}
                   </span>
                 </div>
-                <button onClick={() => substituirNaGrade(guia.id)}
-                  className="mt-2 w-full py-1 text-[10px] text-white/30 hover:text-white/60 border border-white/[0.06] rounded-lg hover:bg-white/[0.06] transition">
-                  🔄 Trocar
-                </button>
+                <div className="flex gap-1">
+                  <button onClick={() => setGuiaAberta(guia)}
+                    className="flex-1 py-1 text-[10px] text-white/30 hover:text-white/60 border border-white/[0.06] rounded-lg hover:bg-white/[0.06] transition">
+                    👁 Ver
+                  </button>
+                  <button onClick={() => substituirNaGrade(guia.id)}
+                    className="flex-1 py-1 text-[10px] text-white/30 hover:text-white/60 border border-white/[0.06] rounded-lg hover:bg-white/[0.06] transition">
+                    🔄 Trocar
+                  </button>
+                </div>
               </div>
             ))}
             {gradeHoje.length === 0 && (
