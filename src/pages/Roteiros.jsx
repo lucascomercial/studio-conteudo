@@ -45,23 +45,18 @@ function Badge({ label, className }) {
 
 function GuiaModal({ guia, onClose, onDelete, onRecriar, onStatusChange }) {
   const [deletando, setDeletando] = useState(false)
-  const [estiloRoteiro, setEstiloRoteiro] = useState('corrido')
-  // Estado separado para cada formato — não se sobrescrevem
-  const [roteiroCorrido, setRoteiroCorrido] = useState(guia.roteiro_video || '')
-  const [roteiroCortes, setRoteiroCortes]   = useState(guia.roteiro_cortes || '')
+  const [roteiro, setRoteiro] = useState(guia.roteiro_video || '')
   const [gerandoRoteiro, setGerandoRoteiro] = useState(false)
+  const [estiloRoteiro, setEstiloRoteiro] = useState('corrido')
   const [copiado, setCopiado] = useState(false)
   const [editando, setEditando] = useState(false)
   const [textoEditado, setTextoEditado] = useState('')
   const [salvandoEdicao, setSalvandoEdicao] = useState(false)
-
-  // Roteiro ativo baseado no estilo selecionado
-  const roteiro = estiloRoteiro === 'cortes' ? roteiroCortes : roteiroCorrido
-  const setRoteiro = (val) => estiloRoteiro === 'cortes' ? setRoteiroCortes(val) : setRoteiroCorrido(val)
+  useEffect(() => { setRoteiro(estiloRoteiro === 'cortes' ? (guia.roteiro_cortes || '') : (guia.roteiro_video || '')) }, [estiloRoteiro])
   const isProfundo = !!guia.o_que_isso_realmente_quer_dizer || !!guia.subtexto_escondido
 
   const iniciarEdicao = () => {
-    setTextoEditado(roteiro)
+    setTextoEditado(estiloRoteiro === 'cortes' ? (guia.roteiro_cortes || '') : (guia.roteiro_video || ''))
     setEditando(true)
   }
 
@@ -71,13 +66,8 @@ function GuiaModal({ guia, onClose, onDelete, onRecriar, onStatusChange }) {
     const campo = estiloRoteiro === 'cortes' ? 'roteiro_cortes' : 'roteiro_video'
     const tabela = guia.tipo === 'profundo' ? 'guias_profundas' : 'guias_conteudo'
     await supabase.from(tabela).update({ [campo]: textoEditado }).eq('id', guia.id)
-    // Atualiza guia local e estado
     guia[campo] = textoEditado
-    if (estiloRoteiro === 'cortes') {
-      setRoteiroCortes(textoEditado)
-    } else {
-      setRoteiroCorrido(textoEditado)
-    }
+    setRoteiro(textoEditado)
     setSalvandoEdicao(false)
     setEditando(false)
   }
@@ -114,12 +104,7 @@ function GuiaModal({ guia, onClose, onDelete, onRecriar, onStatusChange }) {
       const result = await response.json()
       if (!response.ok) throw new Error(result.error || 'Erro na Edge Function')
       setRoteiro(result.roteiro)
-      // Atualiza o objeto guia local no campo correto
-      if (estiloRoteiro === 'cortes') {
-        guia.roteiro_cortes = result.roteiro
-      } else {
-        guia.roteiro_video = result.roteiro
-      }
+      guia.roteiro_video = result.roteiro
       setCopiado(false)
     } catch (err) {
       console.error(err)
@@ -556,7 +541,9 @@ export default function Roteiros() {
         },
         body: JSON.stringify({
           tensao_id: tensaoId,
-          tensao_texto: guia.tensao_texto || guia.titulo
+          tensao_texto: guia.tensao_texto || guia.titulo,
+          publico: guia.publico_alvo || 'corretor',
+          tom: guia.tom_roteiro || 'confronto',
         })
       })
 
@@ -569,7 +556,7 @@ export default function Roteiros() {
         .from('guias_profundas')
         .update({
           tensao_id: tensaoId,
-          publico_alvo: novaGuia.publico || guia.publico_alvo,
+          publico_alvo: guia.publico_alvo || novaGuia.publico || 'corretor',
           narrativa: novaGuia.narrativa,
           emocao: novaGuia.emocao,
           potencial_viral: typeof novaGuia.potencial_viral === 'number' ? novaGuia.potencial_viral : 5,
